@@ -1,6 +1,6 @@
 ﻿#--------------------------------------------------------------------------
 #
-# Copyright (c) Microsoft Corporation. All rights reserved. 
+# Copyright (c) Microsoft Corporation. All rights reserved.
 #
 # The MIT License (MIT)
 #
@@ -31,6 +31,10 @@ try:
     from unittest import mock
 except ImportError:
     import mock
+try:
+    from urlparse import urljoin
+except ImportError:
+    from urllib.parse import urljoin
 
 from requests_oauthlib import OAuth2Session
 import oauthlib
@@ -54,7 +58,7 @@ class TestInteractiveCredentials(unittest.TestCase):
     def setUp(self):
         self.cfg = AzureConfiguration("https://my_service.com")
         return super(TestInteractiveCredentials, self).setUp()
-    
+
     def test_http(self):
 
         test_uri = "http://my_service.com"
@@ -282,8 +286,8 @@ class TestInteractiveCredentials(unittest.TestCase):
         session = mock.create_autospec(OAuth2Session)
         with mock.patch.object(
             ServicePrincipalCredentials, '_setup_session', return_value=session):
-            
-            creds = ServicePrincipalCredentials("client_id", "secret", 
+
+            creds = ServicePrincipalCredentials("client_id", "secret",
                                                 verify=False, tenant="private")
 
             session.fetch_token.assert_called_with(
@@ -294,7 +298,7 @@ class TestInteractiveCredentials(unittest.TestCase):
 
         with mock.patch.object(
             ServicePrincipalCredentials, '_setup_session', return_value=session):
-            
+
             creds = ServicePrincipalCredentials("client_id", "secret", china=True,
                                                 verify=False, tenant="private")
 
@@ -336,8 +340,8 @@ class TestInteractiveCredentials(unittest.TestCase):
         session = mock.create_autospec(OAuth2Session)
         with mock.patch.object(
             UserPassCredentials, '_setup_session', return_value=session):
-            
-            creds = UserPassCredentials("my_username", "my_password", 
+
+            creds = UserPassCredentials("my_username", "my_password",
                                         verify=False, tenant="private", resource='resource')
 
             session.fetch_token.assert_called_with(
@@ -347,7 +351,7 @@ class TestInteractiveCredentials(unittest.TestCase):
 
         with mock.patch.object(
             UserPassCredentials, '_setup_session', return_value=session):
-            
+
             creds = UserPassCredentials("my_username", "my_password", client_id="client_id",
                                         verify=False, tenant="private", china=True)
 
@@ -355,6 +359,52 @@ class TestInteractiveCredentials(unittest.TestCase):
                 "https://login.chinacloudapi.cn/private/oauth2/token",
                 client_id="client_id", username='my_username',
                 password='my_password', resource='https://management.core.chinacloudapi.cn/', verify=False)
+
+
+class TestAdalAuthentication(unittest.TestCase):
+
+    """Test authentication using adal."""
+
+    def test_base_init(self):
+        # Test azure_active_directory.AdalAuthentication.__init__().
+        endpoint = "https://localhost"
+        tenant = "test-tenant"
+        auth = azure_active_directory.AdalAuthentication(auth_endpoint=endpoint,
+                                                         tenant=tenant)
+        self.assertEqual(auth.authority, urljoin(endpoint, tenant))
+
+    @mock.patch("adal.AuthenticationContext")
+    def test_signed_session(self, AuthMock):
+        # Test azure_active_directory.AdalAuthentication.signed_session().
+        sentinel = object()
+        AuthMock.return_value = sentinel
+        access_token = "access-token"
+        token_type = "token-type"
+        token_data = {azure_active_directory._TOKEN_ENTRY_TOKEN_TYPE: token_type,
+                      azure_active_directory._ACCESS_TOKEN: access_token}
+        class FakeAuth(azure_active_directory.AdalAuthentication):
+            def acquire_token(self, context):
+                self.context = context
+                return token_data
+
+        auth =FakeAuth()
+        token = auth.signed_session()
+        self.assertEqual(AuthMock.call_args, mock.call(auth.authority))
+        self.assertEqual(token.headers["Authorization"],
+                         " ".join([token_type, access_token]))
+        self.assertIs(auth.context, sentinel)
+
+    def test_username_password(self):
+        # Test azure_active_directory.AdaluserPassCredentials.
+        username = 'msrestazure-test'
+        password = 'password'
+        context = mock.Mock()
+        auth = azure_active_directory.AdalUserPassCredentials(username,
+                                                              password)
+        token = auth.acquire_token(context)
+        acquire_call = mock.call.acquire_token_with_username_password(
+                auth.resource, username, password, auth.client_id)
+        self.assertEqual(context.method_calls, [acquire_call])
 
 
 if __name__ == '__main__':
