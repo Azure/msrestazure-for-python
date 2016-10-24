@@ -1,2 +1,0 @@
-msrest>=0.4.4
-keyring>=5.6
