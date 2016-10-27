@@ -532,19 +532,20 @@ class InteractiveCredentials(AADMixin):
 # Constants related to AAD-based authentication methods.
 _TOKEN_ENTRY_TOKEN_TYPE = 'tokenType'
 _ACCESS_TOKEN = 'accessToken'
+XPLAT_APP_ID = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
 
 
 class AdalAuthentication(msrest.authentication.Authentication):
 
     """Base class for adal-derived authentication."""
 
-    def __init__(self, client_id="04b07795-8ddb-461a-bbee-02f9e1bf7b46",
+    def __init__(self, client_id,
                  tenant="common",
                  auth_endpoint="https://login.microsoftonline.com",
                  resource="https://management.core.windows.net/"):
         """Handle details common to adal."""
         super(AdalAuthentication, self).__init__()
-        self.client_id = client_id  # Default value is xplat client ID.
+        self.client_id = client_id
         self.authority = urljoin(auth_endpoint, tenant)
         self.resource = resource
 
@@ -568,8 +569,8 @@ class AdalUserPassCredentials(AdalAuthentication):
 
     """Authenticate with AAD using a username and password."""
 
-    def __init__(self, username, password, **kwargs):
-        super(AdalUserPassCredentials, self).__init__(**kwargs)
+    def __init__(self, username, password, client_id, **kwargs):
+        super(AdalUserPassCredentials, self).__init__(client_id, **kwargs)
         self.username = username
         self.password = password
 

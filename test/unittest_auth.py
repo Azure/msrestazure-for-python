@@ -369,8 +369,10 @@ class TestAdalAuthentication(unittest.TestCase):
         # Test azure_active_directory.AdalAuthentication.__init__().
         endpoint = "https://localhost"
         tenant = "test-tenant"
-        auth = azure_active_directory.AdalAuthentication(auth_endpoint=endpoint,
-                                                         tenant=tenant)
+        auth = azure_active_directory.AdalAuthentication(
+                azure_active_directory.XPLAT_APP_ID,
+                auth_endpoint=endpoint,
+                tenant=tenant)
         self.assertEqual(auth.authority, urljoin(endpoint, tenant))
 
     @mock.patch("adal.AuthenticationContext")
@@ -387,7 +389,7 @@ class TestAdalAuthentication(unittest.TestCase):
                 self.context = context
                 return token_data
 
-        auth =FakeAuth()
+        auth =FakeAuth(azure_active_directory.XPLAT_APP_ID)
         token = auth.signed_session()
         self.assertEqual(AuthMock.call_args, mock.call(auth.authority))
         self.assertEqual(token.headers["Authorization"],
@@ -399,8 +401,10 @@ class TestAdalAuthentication(unittest.TestCase):
         username = 'msrestazure-test'
         password = 'password'
         context = mock.Mock()
-        auth = azure_active_directory.AdalUserPassCredentials(username,
-                                                              password)
+        auth = azure_active_directory.AdalUserPassCredentials(
+                username,
+                password,
+                azure_active_directory.XPLAT_APP_ID)
         token = auth.acquire_token(context)
         acquire_call = mock.call.acquire_token_with_username_password(
                 auth.resource, username, password, auth.client_id)
