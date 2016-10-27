@@ -548,6 +548,8 @@ class AdalAuthentication(msrest.authentication.Authentication):
         self.client_id = client_id
         self.authority = urljoin(auth_endpoint, tenant)
         self.resource = resource
+        context = adal.AuthenticationContext(self.authority)
+        self.token = self.acquire_token(context)
 
     # @abc.abstractmethod if Python 2 wasn't supported.
     def acquire_token(self, context):
@@ -557,10 +559,8 @@ class AdalAuthentication(msrest.authentication.Authentication):
     def signed_session(self):
         """Return a signed session."""
         session = super(AdalAuthentication, self).signed_session()
-        context = adal.AuthenticationContext(self.authority)
-        token_entry = self.acquire_token(context)
-        header = " ".join([token_entry[_TOKEN_ENTRY_TOKEN_TYPE],
-                                token_entry[_ACCESS_TOKEN]])
+        header = " ".join([self.token[_TOKEN_ENTRY_TOKEN_TYPE],
+                                self.token[_ACCESS_TOKEN]])
         session.headers['Authorization'] = header
         return session
 
@@ -570,9 +570,9 @@ class AdalUserPassCredentials(AdalAuthentication):
     """Authenticate with AAD using a username and password."""
 
     def __init__(self, username, password, client_id, **kwargs):
-        super(AdalUserPassCredentials, self).__init__(client_id, **kwargs)
         self.username = username
         self.password = password
+        super(AdalUserPassCredentials, self).__init__(client_id, **kwargs)
 
     def acquire_token(self, context):
         return context.acquire_token_with_username_password(

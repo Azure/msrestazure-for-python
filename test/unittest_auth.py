@@ -369,11 +369,18 @@ class TestAdalAuthentication(unittest.TestCase):
         # Test azure_active_directory.AdalAuthentication.__init__().
         endpoint = "https://localhost"
         tenant = "test-tenant"
-        auth = azure_active_directory.AdalAuthentication(
+        token_data = object()  # Sentinel.
+        class FakeAuth(azure_active_directory.AdalAuthentication):
+            def acquire_token(self, context):
+                self.context = context
+                return token_data
+
+        auth = FakeAuth(
                 azure_active_directory.XPLAT_APP_ID,
                 auth_endpoint=endpoint,
                 tenant=tenant)
         self.assertEqual(auth.authority, urljoin(endpoint, tenant))
+        self.assertIs(auth.token, token_data)
 
     @mock.patch("adal.AuthenticationContext")
     def test_signed_session(self, AuthMock):
@@ -396,16 +403,18 @@ class TestAdalAuthentication(unittest.TestCase):
                          " ".join([token_type, access_token]))
         self.assertIs(auth.context, sentinel)
 
-    def test_username_password(self):
-        # Test azure_active_directory.AdaluserPassCredentials.
+    @mock.patch("adal.AuthenticationContext")
+    def test_username_password(self, mocked_context):
+        # Test azure_active_directory.AdaluserPassCredentials.__init__() calls
+        # context.acquire_token_with_username_password().
         username = 'msrestazure-test'
         password = 'password'
         context = mock.Mock()
+        mocked_context.return_value = context
         auth = azure_active_directory.AdalUserPassCredentials(
                 username,
                 password,
                 azure_active_directory.XPLAT_APP_ID)
-        token = auth.acquire_token(context)
         acquire_call = mock.call.acquire_token_with_username_password(
                 auth.resource, username, password, auth.client_id)
         self.assertEqual(context.method_calls, [acquire_call])
