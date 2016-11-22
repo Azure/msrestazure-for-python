@@ -28,10 +28,11 @@ import ast
 import re
 import time
 try:
-    from urlparse import urlparse, parse_qs
+    from urlparse import urljoin, urlparse, parse_qs
 except ImportError:
-    from urllib.parse import urlparse, parse_qs
+    from urllib.parse import urljoin, urlparse, parse_qs
 
+import adal
 import keyring
 from oauthlib.oauth2 import BackendApplicationClient, LegacyApplicationClient
 from oauthlib.oauth2.rfc6749.errors import (
@@ -42,6 +43,7 @@ from oauthlib.oauth2.rfc6749.errors import (
 from requests import RequestException
 import requests_oauthlib as oauth
 
+import msrest.authentication
 from msrest.authentication import OAuthTokenAuthentication
 from msrest.exceptions import TokenExpiredError as Expired
 from msrest.exceptions import (
@@ -525,3 +527,53 @@ class InteractiveCredentials(AADMixin):
             raise_with_traceback(AuthenticationError, "", err)
         else:
             self.token = token
+
+
+# Constants related to AAD-based authentication methods.
+_TOKEN_ENTRY_TOKEN_TYPE = 'tokenType'
+_ACCESS_TOKEN = 'accessToken'
+XPLAT_APP_ID = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+
+
+class AdalAuthentication(msrest.authentication.Authentication):
+
+    """Base class for adal-derived authentication."""
+
+    def __init__(self, client_id,
+                 tenant="common",
+                 auth_endpoint="https://login.microsoftonline.com",
+                 resource="https://management.core.windows.net/"):
+        """Handle details common to adal."""
+        super(AdalAuthentication, self).__init__()
+        self.client_id = client_id
+        self.authority = urljoin(auth_endpoint, tenant)
+        self.resource = resource
+        context = adal.AuthenticationContext(self.authority)
+        self.token = self.acquire_token(context)
+
+    # @abc.abstractmethod if Python 2 wasn't supported.
+    def acquire_token(self, context):
+        """Override with code that returns an adal.acquire_*() call."""
+        raise NotImplementedError
+
+    def signed_session(self):
+        """Return a signed session."""
+        session = super(AdalAuthentication, self).signed_session()
+        header = " ".join([self.token[_TOKEN_ENTRY_TOKEN_TYPE],
+                                self.token[_ACCESS_TOKEN]])
+        session.headers['Authorization'] = header
+        return session
+
+
+class AdalUserPassCredentials(AdalAuthentication):
+
+    """Authenticate with AAD using a username and password."""
+
+    def __init__(self, username, password, client_id, **kwargs):
+        self.username = username
+        self.password = password
+        super(AdalUserPassCredentials, self).__init__(client_id, **kwargs)
+
+    def acquire_token(self, context):
+        return context.acquire_token_with_username_password(
+                self.resource, self.username, self.password, self.client_id)
