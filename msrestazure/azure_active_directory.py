@@ -551,7 +551,7 @@ class AdalAuthentication(Authentication):#pylint: disable=too-few-public-methods
             #pylint: disable=no-member
             if (hasattr(err, 'error_response') and ('error_description' in err.error_response)
                     and ('AADSTS70008:' in err.error_response['error_description'])):
-                raise Expired("Credentials have expired due to inactivity. Please run 'az login'")
+                raise Expired("Credentials have expired due to inactivity.")
 
             raise AuthenticationError(err)
         except ConnectionError as err:
