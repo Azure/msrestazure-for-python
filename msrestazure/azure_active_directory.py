@@ -534,8 +534,10 @@ class InteractiveCredentials(AADMixin):
 
 class AdalAuthentication(Authentication):#pylint: disable=too-few-public-methods
 
-    def __init__(self, token_retriever):
-        self._token_retriever = token_retriever
+    def __init__(self, adal_method, *args, **kwargs):
+        self._adal_method = adal_method
+        self._args = args
+        self._kwargs = kwargs
 
     def signed_session(self):
         session = super(AdalAuthentication, self).signed_session()
@@ -543,7 +545,7 @@ class AdalAuthentication(Authentication):#pylint: disable=too-few-public-methods
         import adal # Adal is not mandatory
 
         try:
-            raw_token = self._token_retriever()
+            raw_token = self._adal_method(*self._args, **self._kwargs)
             scheme, token = raw_token['tokenType'], raw_token['accessToken']
         except adal.AdalError as err:
             #pylint: disable=no-member
