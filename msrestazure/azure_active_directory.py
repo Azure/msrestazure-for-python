@@ -39,10 +39,16 @@ from oauthlib.oauth2.rfc6749.errors import (
     MismatchingStateError,
     OAuth2Error,
     TokenExpiredError)
-from requests import RequestException
+from requests import (
+    RequestException,
+    ConnectionError
+)
 import requests_oauthlib as oauth
 
-from msrest.authentication import OAuthTokenAuthentication
+from msrest.authentication import (
+    OAuthTokenAuthentication,
+    Authentication
+)
 from msrest.exceptions import TokenExpiredError as Expired
 from msrest.exceptions import (
     AuthenticationError,
@@ -525,3 +531,30 @@ class InteractiveCredentials(AADMixin):
             raise_with_traceback(AuthenticationError, "", err)
         else:
             self.token = token
+
+class AdalAuthentication(Authentication):#pylint: disable=too-few-public-methods
+
+    def __init__(self, token_retriever):
+        self._token_retriever = token_retriever
+
+    def signed_session(self):
+        session = super(AdalAuthentication, self).signed_session()
+
+        import adal # Adal is not mandatory
+
+        try:
+            raw_token = self._token_retriever()
+            scheme, token = raw_token['tokenType'], raw_token['accessToken']
+        except adal.AdalError as err:
+            #pylint: disable=no-member
+            if (hasattr(err, 'error_response') and ('error_description' in err.error_response)
+                    and ('AADSTS70008:' in err.error_response['error_description'])):
+                raise Expired("Credentials have expired due to inactivity. Please run 'az login'")
+
+            raise AuthenticationError(err)
+        except ConnectionError as err:
+            raise AuthenticationError('Please ensure you have network connection. Error detail: ' + str(err))
+
+        header = "{} {}".format(scheme, token)
+        session.headers['Authorization'] = header
+        return session
