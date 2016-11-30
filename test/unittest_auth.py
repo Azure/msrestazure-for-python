@@ -34,6 +34,7 @@ except ImportError:
 
 from requests_oauthlib import OAuth2Session
 import oauthlib
+import adal
 
 from msrestazure import AzureConfiguration
 from msrestazure import azure_active_directory
@@ -41,12 +42,14 @@ from msrestazure.azure_active_directory import (
     AADMixin,
     InteractiveCredentials,
     ServicePrincipalCredentials,
-    UserPassCredentials
+    UserPassCredentials,
+    AdalAuthentication
     )
 from msrest.exceptions import (
     TokenExpiredError,
     AuthenticationError,
     )
+from requests import ConnectionError
 
 
 class TestInteractiveCredentials(unittest.TestCase):
@@ -356,6 +359,34 @@ class TestInteractiveCredentials(unittest.TestCase):
                 client_id="client_id", username='my_username',
                 password='my_password', resource='https://management.core.chinacloudapi.cn/', verify=False)
 
+    def test_adal_authentication(self):
+        def success_auth():
+            return {
+                'tokenType': 'https',
+                'accessToken': 'cryptictoken'
+            }
+
+        credentials = AdalAuthentication(success_auth)
+        session = credentials.signed_session()
+        self.assertEquals(session.headers['Authorization'], 'https cryptictoken')
+
+        def error():
+            raise adal.AdalError("You hacker", {})
+        credentials = AdalAuthentication(error)
+        with self.assertRaises(AuthenticationError) as cm:
+            session = credentials.signed_session()
+
+        def expired():
+            raise adal.AdalError("Too late", {'error_description': "AADSTS70008: Expired"})
+        credentials = AdalAuthentication(expired)
+        with self.assertRaises(TokenExpiredError) as cm:
+            session = credentials.signed_session()
+
+        def connection_error():
+            raise ConnectionError("Plug the network")
+        credentials = AdalAuthentication(connection_error)
+        with self.assertRaises(AuthenticationError) as cm:
+            session = credentials.signed_session()
 
 if __name__ == '__main__':
     unittest.main()
