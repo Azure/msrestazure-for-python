@@ -50,5 +50,7 @@ setup(
         'Topic :: Software Development'],
     install_requires=[
         "msrest~=0.4.4",
-        "keyring>=5.6"],
+        "keyring>=5.6",
+        "adal~=0.4.0"
+    ],
 )
