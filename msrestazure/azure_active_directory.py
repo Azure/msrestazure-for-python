@@ -527,8 +527,8 @@ class InteractiveCredentials(AADMixin):
 
 
 class AdalAuthentication(Authentication):  # pylint: disable=too-few-public-methods
-    """A wrapper to use ADAL for Python easily to authenticate on Azure.
-    """
+    """A wrapper to use ADAL for Python easily to authenticate on Azure."""
+
     def __init__(self, adal_method, *args, **kwargs):
         """Take an ADAL `acquire_token` method and its parameters.
 
