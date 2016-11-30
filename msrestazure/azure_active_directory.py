@@ -33,26 +33,19 @@ except ImportError:
     from urllib.parse import urlparse, parse_qs
 
 import keyring
+import adal
 from oauthlib.oauth2 import BackendApplicationClient, LegacyApplicationClient
 from oauthlib.oauth2.rfc6749.errors import (
     InvalidGrantError,
     MismatchingStateError,
     OAuth2Error,
     TokenExpiredError)
-from requests import (
-    RequestException,
-    ConnectionError
-)
+from requests import RequestException, ConnectionError
 import requests_oauthlib as oauth
 
-from msrest.authentication import (
-    OAuthTokenAuthentication,
-    Authentication
-)
+from msrest.authentication import OAuthTokenAuthentication, Authentication
 from msrest.exceptions import TokenExpiredError as Expired
-from msrest.exceptions import (
-    AuthenticationError,
-    raise_with_traceback)
+from msrest.exceptions import AuthenticationError, raise_with_traceback
 
 
 def _build_url(uri, paths, scheme):
@@ -532,31 +525,80 @@ class InteractiveCredentials(AADMixin):
         else:
             self.token = token
 
-class AdalAuthentication(Authentication):#pylint: disable=too-few-public-methods
 
+class AdalAuthentication(Authentication):  # pylint: disable=too-few-public-methods
+    """A wrapper to use ADAL for Python easily to authenticate on Azure.
+    """
     def __init__(self, adal_method, *args, **kwargs):
+        """Take an ADAL `acquire_token` method and its parameters.
+
+        For example, this code from the ADAL tutorial:
+
+        ```python
+        context = adal.AuthenticationContext('https://login.microsoftonline.com/ABCDEFGH-1234-1234-1234-ABCDEFGHIJKL')
+        RESOURCE = '00000002-0000-0000-c000-000000000000' #AAD graph resource
+        token = context.acquire_token_with_client_credentials(
+            RESOURCE,
+            "http://PythonSDK",
+            "Key-Configured-In-Portal")
+        ```
+
+        can be written here:
+
+        ```python
+        context = adal.AuthenticationContext('https://login.microsoftonline.com/ABCDEFGH-1234-1234-1234-ABCDEFGHIJKL')
+        RESOURCE = '00000002-0000-0000-c000-000000000000' #AAD graph resource
+        credentials = AdalAuthentication(
+            context.acquire_token_with_client_credentials,
+            RESOURCE,
+            "http://PythonSDK",
+            "Key-Configured-In-Portal")
+        ```
+
+        or using a lambda if you prefer:
+
+        ```python
+        context = adal.AuthenticationContext('https://login.microsoftonline.com/ABCDEFGH-1234-1234-1234-ABCDEFGHIJKL')
+        RESOURCE = '00000002-0000-0000-c000-000000000000' #AAD graph resource
+        credentials = AdalAuthentication(
+            lambda: context.acquire_token_with_client_credentials(
+                RESOURCE,
+                "http://PythonSDK",
+                "Key-Configured-In-Portal"
+            )
+        )
+        ```
+
+        :param adal_method: A lambda with no args, or `acquire_token` method with args using args/kwargs
+        :param args: Optional args for the method
+        :param kwargs: Optional kwargs for the method
+        """
         self._adal_method = adal_method
         self._args = args
         self._kwargs = kwargs
 
     def signed_session(self):
-        session = super(AdalAuthentication, self).signed_session()
+        """Get a signed session for requests.
 
-        import adal # Adal is not mandatory
+        Usually called by the Azure SDKs for you to authenticate queries.
+
+        :rtype: requests.Session
+        """
+        session = super(AdalAuthentication, self).signed_session()
 
         try:
             raw_token = self._adal_method(*self._args, **self._kwargs)
-            scheme, token = raw_token['tokenType'], raw_token['accessToken']
         except adal.AdalError as err:
-            #pylint: disable=no-member
+            # pylint: disable=no-member
             if (hasattr(err, 'error_response') and ('error_description' in err.error_response)
                     and ('AADSTS70008:' in err.error_response['error_description'])):
                 raise Expired("Credentials have expired due to inactivity.")
-
-            raise AuthenticationError(err)
+            else:
+                raise AuthenticationError(err)
         except ConnectionError as err:
             raise AuthenticationError('Please ensure you have network connection. Error detail: ' + str(err))
 
+        scheme, token = raw_token['tokenType'], raw_token['accessToken']
         header = "{} {}".format(scheme, token)
         session.headers['Authorization'] = header
         return session
