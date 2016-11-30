@@ -44,11 +44,8 @@ from msrestazure.azure_active_directory import (
     ServicePrincipalCredentials,
     UserPassCredentials,
     AdalAuthentication
-    )
-from msrest.exceptions import (
-    TokenExpiredError,
-    AuthenticationError,
-    )
+)
+from msrest.exceptions import TokenExpiredError, AuthenticationError
 from requests import ConnectionError
 
 
