@@ -28,11 +28,10 @@ from setuptools import setup
 
 setup(
     name='msrestazure',
-    version='0.4.4',
+    version='0.4.5',
     author='Microsoft Corporation',
     packages=['msrestazure'],
-    url=('https://github.com/Azure/autorest/tree/master/'
-         'src/client/Python/msrestazure'),
+    url='https://github.com/Azure/msrestazure-for-python',
     license='MIT License',
     description=('AutoRest swagger generator Python client runtime. '
                  'Azure-specific module.'),

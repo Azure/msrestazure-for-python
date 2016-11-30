@@ -15,6 +15,13 @@ To install:
 Release History
 ---------------
 
+2016-11-30 Version 0.4.5
+++++++++++++++++++++++++
+
+**New features**
+
+- Add AdalAuthentification class to wrap ADAL library (https://github.com/Azure/msrestazure-for-python/pull/8)
+
 2016-10-17 Version 0.4.4
 ++++++++++++++++++++++++
 
