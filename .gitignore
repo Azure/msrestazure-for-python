@@ -1,0 +1,6 @@
+__pycache__
+*.pyc
+venv*
+msrestazure.egg-info
+.tox
+test/.coverage
