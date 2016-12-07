@@ -174,17 +174,17 @@ class LongRunningOperation(object):
         body = response.json()
         return body.get('status')
 
-    def _get_provisioning_state(self):
+    def _get_provisioning_state(self, response):
         """
         Attempt to get provisioning state from resource.
+        :param requests.Response response: latest REST call response.
         :returns: Status if found, else 'None'.
         """
+        if self._is_empty(response):
+            return None
+        body = response.json()
         try:
-            return self.resource.provisioning_state
-        except AttributeError:
-            pass
-        try:
-            return self.resource.properties.provisioning_state
+            return body.get("properties", {}).get("provisioningState")
         except AttributeError:
             return None
 
@@ -201,7 +201,7 @@ class LongRunningOperation(object):
 
         :param requests.Response response: latest REST call response.
         """
-        status = self._get_provisioning_state()
+        status = self._get_provisioning_state(response)
         self.status = status or 'Succeeded'
 
     def _status_201(self, response):
@@ -210,7 +210,7 @@ class LongRunningOperation(object):
         :param requests.Response response: latest REST call response.
         :raises: BadResponse if response deserializes to CloudError.
         """
-        status = self._get_provisioning_state()
+        status = self._get_provisioning_state(response)
         self.status = status or 'InProgress'
 
     def _status_202(self, response):
@@ -230,7 +230,7 @@ class LongRunningOperation(object):
         self.status = 'Succeeded'
         self.resource = None
 
-    def is_done(self):
+    def is_done(self, response):
         """Check whether the operation can be considered complete.
         This is based on whether the data in the resource matches the current
         status. If there is not resource, we assume it's complete.
@@ -241,7 +241,7 @@ class LongRunningOperation(object):
         if (self.async_url or not self.resource) and \
                 self.method in {'PUT', 'PATCH'}:
             return False
-        resource_state = self._get_provisioning_state()
+        resource_state = self._get_provisioning_state(response)
         try:
             return self.status.lower() == resource_state.lower()
         except AttributeError:
@@ -287,7 +287,7 @@ class LongRunningOperation(object):
              (code == 201 and self.method == "PUT") or \
              (code == 204 and self.method in {"DELETE", "POST"}):
 
-            status = self._get_provisioning_state()
+            status = self._get_provisioning_state(response)
             self.status = status or 'Succeeded'
             if self._is_empty(response):
                 self.resource = None
@@ -309,7 +309,7 @@ class LongRunningOperation(object):
             raise BadResponse('The response from long running operation '
                               'does not contain a body.')
 
-        status = self._get_provisioning_state()
+        status = self._get_provisioning_state(response)
         self.status = status or 'Succeeded'
         self.resource = self.get_outputs(response)
 
@@ -482,7 +482,7 @@ class AzureOperationPoller(object):
 
         if failed(self._operation.status):
             raise OperationFailed("Operation failed or cancelled")
-        elif not self._operation.is_done():
+        elif not self._operation.is_done(self._response):
             self._response = update_cmd(initial_url)
             self._operation.get_status_from_resource(
                 self._response)
