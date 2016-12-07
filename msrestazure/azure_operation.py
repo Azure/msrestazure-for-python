@@ -230,22 +230,14 @@ class LongRunningOperation(object):
         self.status = 'Succeeded'
         self.resource = None
 
-    def is_done(self, response):
-        """Check whether the operation can be considered complete.
-        This is based on whether the data in the resource matches the current
-        status. If there is not resource, we assume it's complete.
+    def should_do_final_get(self, response):
+        """Check whether the polling should end doing a final GET.
 
         :param requests.Response response: latest REST call response.
         :rtype: bool
         """
-        if (self.async_url or not self.resource) and \
-                self.method in {'PUT', 'PATCH'}:
-            return False
-        resource_state = self._get_provisioning_state(response)
-        try:
-            return self.status.lower() == resource_state.lower()
-        except AttributeError:
-            return True
+        return (self.async_url or not self.resource) and \
+                self.method in {'PUT', 'PATCH'}
 
     def set_initial_status(self, response):
         """Process first response after initiating long running
@@ -482,7 +474,7 @@ class AzureOperationPoller(object):
 
         if failed(self._operation.status):
             raise OperationFailed("Operation failed or cancelled")
-        elif not self._operation.is_done(self._response):
+        elif self._operation.should_do_final_get(self._response):
             self._response = update_cmd(initial_url)
             self._operation.get_status_from_resource(
                 self._response)
