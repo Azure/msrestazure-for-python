@@ -59,6 +59,30 @@ def succeeded(status):
     return str(status).lower() in SUCCEEDED
 
 
+def _validate(url):
+    """Validate is valid url.
+
+    :param str url: Polling URL extracted from response header.
+    :returns: URL if valid.
+    :raises: ValueError if URL has not scheme or host.
+    """
+    if url is None:
+        return None
+    parsed = urlparse(url)
+    if not parsed.scheme or not parsed.netloc:
+        raise ValueError("Invalid URL header")
+    return url
+
+def _get_header_url(response, header_name):
+    """Get a URL from a header requests.
+
+    :param requests.Response response: REST call response.
+    :param str header_name: Header name.
+    :returns: URL if valid.
+    :raises: ValueError if URL has not scheme or host.
+    """
+    return _validate(response.headers.get(header_name))
+
 class BadStatus(Exception):
     pass
 
@@ -108,29 +132,16 @@ class LongRunningOperation(object):
         self.async_url = None
         self.location_url = None
 
-    def _validate(self, url):
-        """Validate header url
-
-        :param str url: Polling URL extracted from response header.
-        :returns: URL if valid.
-        :raises: ValueError if URL has not scheme or host.
-        """
-        if url is None:
-            return None
-        parsed = urlparse(url)
-        if not parsed.scheme or not parsed.netloc:
-            raise ValueError("Invalid URL header")
-        return url
-
-    def _check_status(self, response):
+    def _raise_if_bad_http_status_and_method(self, response):
         """Check response status code is valid for a Put or Patch
-        reqest. Must be 200, 202, or 204.
+        request. Must be 200, 201, 202, or 204.
 
         :raises: BadStatus if invalid status.
         """
         code = response.status_code
-        if code in [200, 202] or (code == 201 and self.method == 'PUT') or \
-                (code == 204 and self.method in ['DELETE', 'POST']):
+        if code in [200, 202] or \
+           (code == 201 and self.method == 'PUT') or \
+           (code == 204 and self.method in ['DELETE', 'POST']):
             return
         raise BadStatus(
             "Invalid return status for {!r} operation".format(self.method))
@@ -161,7 +172,7 @@ class LongRunningOperation(object):
         """
         self.resource = self.get_outputs(response)
         if self.method == 'PUT':
-            resource_status = self._get_resource_status()
+            resource_status = self._get_provisioning_state()
             if failed(resource_status):
                 self.status = resource_status
                 raise OperationFailed("Operation failed or cancelled")
@@ -170,7 +181,7 @@ class LongRunningOperation(object):
             elif resource_status:
                 self.status = resource_status
 
-    def _get_body_status(self, response):
+    def _get_async_status(self, response):
         """Attempt to find status info in response body.
 
         :param requests.Response response: latest REST call response.
@@ -182,7 +193,7 @@ class LongRunningOperation(object):
         body = response.json()
         return body.get('status')
 
-    def _get_resource_status(self):
+    def _get_provisioning_state(self):
         """
         Attempt to get provisioning state from resource.
         :returns: Status if found, else 'None'.
@@ -196,27 +207,7 @@ class LongRunningOperation(object):
         except AttributeError:
             return None
 
-    def _object_from_response(self, response):
-        """If deserialization fails, attempt to create object from
-        response body regardless.
-        Required functionality for Azure LRO's....
-
-        :param requests.Response response: latest REST call response.
-        """
-        body = response.json()
-        body = {self._convert.sub(r'\1_\2', k).lower(): v
-                for k, v in body.items()}
-        properties = body.get('properties')
-        if properties:
-            properties = {self._convert.sub(r'\1_\2', k).lower(): v
-                          for k, v in properties.items()}
-            del body['properties']
-            body.update(properties)
-            self.resource = SimpleResource(**body)
-        else:
-            self.resource = SimpleResource(**body)
-
-    def _process_status(self, response):
+    def _process_http_status_code(self, response):
         """Process response based on specific status code.
 
         :param requests.Response response: latest REST call response.
@@ -229,15 +220,8 @@ class LongRunningOperation(object):
 
         :param requests.Response response: latest REST call response.
         """
-        status = self._get_body_status(response)
+        status = self._get_provisioning_state()
         self.status = status if status else 'Succeeded'
-        if not status:
-            try:
-                # Even if this fails, status '200' should be successful.
-                self._deserialize(response)
-            except CloudError:
-                if self.method in ['PUT', 'PATCH']:
-                    self._object_from_response(response)
 
     def _status_201(self, response):
         """Process response with status code 201.
@@ -245,12 +229,8 @@ class LongRunningOperation(object):
         :param requests.Response response: latest REST call response.
         :raises: BadResponse if response deserializes to CloudError.
         """
-        try:
-            self._deserialize(response)
-            if not self.status:
-                self.status = 'Succeeded'
-        except CloudError as err:
-            raise BadResponse(str(err))
+        status = self._get_provisioning_state()
+        self.status = status if status else 'InProgress'
 
     def _status_202(self, response):
         """Process response with status code 202.
@@ -274,30 +254,36 @@ class LongRunningOperation(object):
         This is based on whether the data in the resource matches the current
         status. If there is not resource, we assume it's complete.
 
+        :param requests.Response response: latest REST call response.
         :rtype: bool
         """
         if (self.async_url or not self.resource) and \
                 self.method in ['PUT', 'PATCH']:
             return False
-        resource_state = self._get_resource_status()
+        resource_state = self._get_provisioning_state()
         try:
             return self.status.lower() == resource_state.lower()
         except AttributeError:
             return True
 
-    def get_initial_status(self, response):
+    def set_initial_status(self, response):
         """Process first response after initiating long running
-        operation.
+        operation and set self.status attribute.
 
         :param requests.Response response: initial REST call response.
         """
-        self._deserialize(response)
-        self._check_status(response)
-        if response.status_code in [200, 202, 204]:
-            self._process_status(response)
-        status = self._get_body_status(response)
-        if status:
-            self.status = status
+        self._raise_if_bad_http_status_and_method(response)
+
+        self.resource = self.get_outputs(response)
+        self.set_async_url_if_present(response)
+
+        if response.status_code in [200, 201, 202, 204]:
+            if self.async_url or self.location_url:
+                self.status = 'InProgress'
+            else:
+                self._process_http_status_code(response)
+        else:
+            self.status = 'Failed'
 
     def get_status_from_location(self, response):
         """Process the latest status update retrieved from a 'location'
@@ -306,8 +292,23 @@ class LongRunningOperation(object):
         :param requests.Response response: latest REST call response.
         :raises: BadResponse if response has no body and not status 202.
         """
-        self._check_status(response)
-        self._process_status(response)
+        code = response.status_code
+        if code == 201:
+            self.status = "InProgress"
+        elif code == 200 or \
+             (code == 201 and self.method == "PUT") or \
+             (code == 204 and method in ["DELETE", "POST"]):
+
+            status = self._get_provisioning_state()
+            self.status = status if status else 'Succeeded'
+            if self._is_empty(response):
+                self.resource = None
+            else:
+                self.resource = self.get_outputs(response)
+
+        else:
+            raise BadStatus(
+                "Invalid return status for {!r} operation".format(self.method))
 
     def get_status_from_resource(self, response):
         """Process the latest status update retrieved from the same URL as
@@ -316,11 +317,13 @@ class LongRunningOperation(object):
         :param requests.Response response: latest REST call response.
         :raises: BadResponse if status not 200 or 204.
         """
-        self._check_status(response)
-        if self._is_empty(response) and self.method in ['PUT', 'PATCH']:
-            raise BadResponse('The response from long running '
-                              'operation does not contain a body.')
-        self._process_status(response)
+        if self._is_empty(response):
+            raise BadResponse('The response from long running operation '
+                              'does not contain a body.')
+
+        status = self._get_provisioning_state()
+        self.status = status if status else 'Succeeded'
+        self.resource = self.get_outputs(response)
 
     def get_status_from_async(self, response):
         """Process the latest status update retrieved from a
@@ -330,37 +333,32 @@ class LongRunningOperation(object):
         :raises: BadResponse if response has no body, or body does not
          contain status.
         """
-        self._check_status(response)
         if self._is_empty(response):
             raise BadResponse('The response from long running operation '
                               'does not contain a body.')
 
-        self.status = self._get_body_status(response)
+        self.status = self._get_async_status(response)
         if not self.status:
             raise BadResponse("No status found in body")
-        if self.method in ["POST", "DELETE"]:
-            try:
-                self._deserialize(response)
-            except CloudError:
-                pass  # Not all 'accept' statuses will deserialize.
 
-    def get_retry(self, response, *args):
-        """Retrieve the URL that will be polled for status. First looks for
-        'azure-asyncoperation' header, if not found or invalid, check for
-        'location' header.
-
-        :param requests.Response response: latest REST call response.
-        """
         try:
-            self.async_url = self._validate(
-                response.headers.get('azure-asyncoperation'))
+            self._deserialize(response)
+        except DeserializationError:
+            self.resource = None
+
+    def set_async_url_if_present(self, response):
+        # If already got it, don't replace
+        if self.async_url or self.location_url:
+            return
+        try:
+            self.async_url = _get_header_url(response, 'azure-asyncoperation')
 
             # Return if we have a url, in case location header raises error.
             if self.async_url:
                 return
         except ValueError:
             pass  # We can ignore as location header may still be valid.
-        self.location_url = self._validate(response.headers.get('location'))
+        self.location_url = _get_header_url(response, 'location')
         if not self.location_url and not self.async_url:
             code = response.status_code
             if code == 202 and self.method == 'POST':
@@ -408,7 +406,7 @@ class AzureOperationPoller(object):
         try:
             self._response = send_cmd()
             self._operation = LongRunningOperation(self._response, output_cmd)
-            self._operation.get_initial_status(self._response)
+            self._operation.set_initial_status(self._response)
             self._poll(update_cmd)
 
         except BadStatus:
@@ -478,7 +476,6 @@ class AzureOperationPoller(object):
             self._delay()
             url = self._response.request.url
             headers = self._polling_cookie()
-            self._operation.get_retry(self._response, initial_url)
 
             if self._operation.async_url:
                 self._response = update_cmd(
