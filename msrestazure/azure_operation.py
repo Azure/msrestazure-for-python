@@ -331,7 +331,7 @@ class LongRunningOperation(object):
 
         try:
             self.resource = self.get_outputs(response)
-        except DeserializationError:
+        except Exception:
             self.resource = None
 
     def set_async_url_if_present(self, response):

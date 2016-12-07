@@ -272,7 +272,19 @@ class TestLongRunningOperation(unittest.TestCase):
                 TestLongRunningOperation.mock_outputs,
                 TestLongRunningOperation.mock_update, 0).result()
 
-    def test_long_running_post_delete(self):
+    def test_long_running_delete(self):
+        # Test polling from azure-asyncoperation header
+        response = TestLongRunningOperation.mock_send(
+            'DELETE', 202,
+            {'azure-asyncoperation': ASYNC_URL})
+        poll = AzureOperationPoller(response,
+            TestLongRunningOperation.mock_outputs,
+            TestLongRunningOperation.mock_update, 0)
+        poll.wait()
+        self.assertIsNone(poll.result())
+        self.assertIsNone(poll._response.randomFieldFromPollAsyncOpHeader)
+
+    def test_long_running_post(self):
 
         # Test throw on non LRO related status code
         response = TestLongRunningOperation.mock_send('POST', 201, {})
