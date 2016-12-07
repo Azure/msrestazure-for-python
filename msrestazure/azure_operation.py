@@ -285,7 +285,7 @@ class LongRunningOperation(object):
             self.status = "InProgress"
         elif code == 200 or \
              (code == 201 and self.method == "PUT") or \
-             (code == 204 and method in {"DELETE", "POST"}):
+             (code == 204 and self.method in {"DELETE", "POST"}):
 
             status = self._get_provisioning_state()
             self.status = status or 'Succeeded'
