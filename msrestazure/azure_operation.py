@@ -162,25 +162,6 @@ class LongRunningOperation(object):
             raise DeserializationError(
                 "Error occurred in deserializing the response body.")
 
-    def _deserialize(self, response):
-        """Attempt to deserialize resource from response.
-
-        :raises: OperationFailed if deserialized resource has status of
-         failed or cancelled.
-        :raises: OperationFinished if deserialised resource has status
-         succeeded.
-        """
-        self.resource = self.get_outputs(response)
-        if self.method == 'PUT':
-            resource_status = self._get_provisioning_state()
-            if failed(resource_status):
-                self.status = resource_status
-                raise OperationFailed("Operation failed or cancelled")
-            elif succeeded(resource_status):
-                raise OperationFinished("Operation succeeded")
-            elif resource_status:
-                self.status = resource_status
-
     def _get_async_status(self, response):
         """Attempt to find status info in response body.
 
@@ -274,7 +255,14 @@ class LongRunningOperation(object):
         """
         self._raise_if_bad_http_status_and_method(response)
 
-        self.resource = self.get_outputs(response)
+        if self._is_empty(response):
+            self.resource = None
+        else:
+            try:
+                self.resource = self.get_outputs(response)
+            except DeserializationError:
+                self.resource = None
+
         self.set_async_url_if_present(response)
 
         if response.status_code in [200, 201, 202, 204]:
@@ -342,7 +330,7 @@ class LongRunningOperation(object):
             raise BadResponse("No status found in body")
 
         try:
-            self._deserialize(response)
+            self.resource = self.get_outputs(response)
         except DeserializationError:
             self.resource = None
 

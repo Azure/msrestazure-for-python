@@ -179,6 +179,17 @@ class TestLongRunningOperation(unittest.TestCase):
         self.assertEqual(poll.result().name, TEST_NAME)
         self.assertIsNone(poll._response.randomFieldFromPollLocationHeader)
 
+        # Test polling initial payload invalid (SQLDb)
+        response_body = {}  # Empty will raise
+        response = TestLongRunningOperation.mock_send(
+            'PUT', 201,
+            {'location': LOCATION_URL}, response_body)
+        poll = AzureOperationPoller(response,
+            TestLongRunningOperation.mock_outputs,
+            TestLongRunningOperation.mock_update, 0)
+        self.assertEqual(poll.result().name, TEST_NAME)
+        self.assertIsNone(poll._response.randomFieldFromPollLocationHeader)
+
         # Test fail to poll from azure-asyncoperation header
         response = TestLongRunningOperation.mock_send(
             'PUT', 201,
