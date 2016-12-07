@@ -79,9 +79,7 @@ class TestLongRunningOperation(unittest.TestCase):
         response = mock.create_autospec(Response)
         response.request = mock.create_autospec(Request)
         response.request.method = 'GET'
-        if not headers:
-            headers = {}
-        response.headers = headers
+        response.headers = headers or {}
         
         if url == ASYNC_URL:
             response.request.url = url

@@ -60,18 +60,16 @@ def succeeded(status):
 
 
 def _validate(url):
-    """Validate is valid url.
+    """Validate a url.
 
     :param str url: Polling URL extracted from response header.
-    :returns: URL if valid.
     :raises: ValueError if URL has not scheme or host.
     """
     if url is None:
-        return None
+        return
     parsed = urlparse(url)
     if not parsed.scheme or not parsed.netloc:
         raise ValueError("Invalid URL header")
-    return url
 
 def _get_header_url(response, header_name):
     """Get a URL from a header requests.
@@ -81,7 +79,9 @@ def _get_header_url(response, header_name):
     :returns: URL if valid.
     :raises: ValueError if URL has not scheme or host.
     """
-    return _validate(response.headers.get(header_name))
+    url = response.headers.get(header_name)
+    _validate(url)
+    return url
 
 class BadStatus(Exception):
     pass
@@ -139,7 +139,7 @@ class LongRunningOperation(object):
         :raises: BadStatus if invalid status.
         """
         code = response.status_code
-        if code in [200, 202] or \
+        if code in {200, 202} or \
            (code == 201 and self.method == 'PUT') or \
            (code == 204 and self.method in ['DELETE', 'POST']):
             return
@@ -202,7 +202,7 @@ class LongRunningOperation(object):
         :param requests.Response response: latest REST call response.
         """
         status = self._get_provisioning_state()
-        self.status = status if status else 'Succeeded'
+        self.status = status or 'Succeeded'
 
     def _status_201(self, response):
         """Process response with status code 201.
@@ -211,7 +211,7 @@ class LongRunningOperation(object):
         :raises: BadResponse if response deserializes to CloudError.
         """
         status = self._get_provisioning_state()
-        self.status = status if status else 'InProgress'
+        self.status = status or 'InProgress'
 
     def _status_202(self, response):
         """Process response with status code 202.
@@ -239,7 +239,7 @@ class LongRunningOperation(object):
         :rtype: bool
         """
         if (self.async_url or not self.resource) and \
-                self.method in ['PUT', 'PATCH']:
+                self.method in {'PUT', 'PATCH'}:
             return False
         resource_state = self._get_provisioning_state()
         try:
@@ -265,7 +265,7 @@ class LongRunningOperation(object):
 
         self.set_async_url_if_present(response)
 
-        if response.status_code in [200, 201, 202, 204]:
+        if response.status_code in {200, 201, 202, 204}:
             if self.async_url or self.location_url:
                 self.status = 'InProgress'
             else:
@@ -281,14 +281,14 @@ class LongRunningOperation(object):
         :raises: BadResponse if response has no body and not status 202.
         """
         code = response.status_code
-        if code == 201:
+        if code == 202:
             self.status = "InProgress"
         elif code == 200 or \
              (code == 201 and self.method == "PUT") or \
-             (code == 204 and method in ["DELETE", "POST"]):
+             (code == 204 and method in {"DELETE", "POST"}):
 
             status = self._get_provisioning_state()
-            self.status = status if status else 'Succeeded'
+            self.status = status or 'Succeeded'
             if self._is_empty(response):
                 self.resource = None
             else:
@@ -310,7 +310,7 @@ class LongRunningOperation(object):
                               'does not contain a body.')
 
         status = self._get_provisioning_state()
-        self.status = status if status else 'Succeeded'
+        self.status = status or 'Succeeded'
         self.resource = self.get_outputs(response)
 
     def get_status_from_async(self, response):
