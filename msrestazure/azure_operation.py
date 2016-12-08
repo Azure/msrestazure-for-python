@@ -183,10 +183,7 @@ class LongRunningOperation(object):
         if self._is_empty(response):
             return None
         body = response.json()
-        try:
-            return body.get("properties", {}).get("provisioningState")
-        except AttributeError:
-            return None
+        return body.get("properties", {}).get("provisioningState")
 
     def _process_http_status_code(self, response):
         """Process response based on specific status code.
@@ -228,7 +225,6 @@ class LongRunningOperation(object):
         :param requests.Response response: latest REST call response.
         """
         self.status = 'Succeeded'
-        self.resource = None
 
     def should_do_final_get(self, response):
         """Check whether the polling should end doing a final GET.
@@ -246,15 +242,6 @@ class LongRunningOperation(object):
         :param requests.Response response: initial REST call response.
         """
         self._raise_if_bad_http_status_and_method(response)
-
-        if self._is_empty(response):
-            self.resource = None
-        else:
-            try:
-                self.resource = self.get_outputs(response)
-            except DeserializationError:
-                self.resource = None
-
         self.set_async_url_if_present(response)
 
         if response.status_code in {200, 201, 202, 204}:
