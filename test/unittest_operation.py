@@ -138,6 +138,25 @@ class TestLongRunningOperation(unittest.TestCase):
                 TestLongRunningOperation.mock_outputs,
                 TestLongRunningOperation.mock_update, 0).result()
 
+        # Test with no polling necessary
+        response_body = {
+            'properties':{'provisioningState': 'Succeeded'},
+            'name': TEST_NAME
+        }
+        response = TestLongRunningOperation.mock_send(
+            'PUT', 201,
+            {}, response_body
+        )
+        def no_update_allowed(url, headers=None):
+            raise ValueError("Should not try to update")
+        poll = AzureOperationPoller(response,
+            TestLongRunningOperation.mock_outputs,
+            no_update_allowed,
+            0
+        )
+        self.assertEqual(poll.result().name, TEST_NAME)
+        self.assertFalse(hasattr(poll._response, 'randomFieldFromPollAsyncOpHeader'))
+
         # Test polling from azure-asyncoperation header
         response = TestLongRunningOperation.mock_send(
             'PUT', 201,
