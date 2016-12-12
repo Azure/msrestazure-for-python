@@ -1,6 +1,11 @@
 AutoRest: Python Client Runtime - Azure Module
 ===============================================
 
+.. image:: https://travis-ci.org/Azure/msrestazure-for-python.svg?branch=master
+ :target: https://travis-ci.org/Azure/msrestazure-for-python
+
+.. image:: https://codecov.io/gh/azure/msrestazure-for-python/branch/master/graph/badge.svg
+ :target: https://codecov.io/gh/azure/msrestazure-for-python
 
 Installation
 ------------
