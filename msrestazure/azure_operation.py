@@ -145,7 +145,7 @@ class LongRunningOperation(object):
         code = response.status_code
         if code in {200, 202} or \
            (code == 201 and self.method == 'PUT') or \
-           (code == 204 and self.method in ['DELETE', 'POST']):
+           (code == 204 and self.method in {'DELETE', 'POST'}):
             return
         raise BadStatus(
             "Invalid return status for {!r} operation".format(self.method))
