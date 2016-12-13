@@ -211,49 +211,7 @@ class LongRunningOperation(object):
         body = response.json()
         return body.get("properties", {}).get("provisioningState")
 
-    def _process_http_status_code(self, response):
-        """Process response based on specific status code.
-
-        :param requests.Response response: latest REST call response.
-        """
-        process = getattr(self, '_status_' + str(response.status_code))
-        process(response)
-
-    def _status_200(self, response):
-        """Process response with status code 200.
-
-        :param requests.Response response: latest REST call response.
-        """
-        status = self._get_provisioning_state(response)
-        self.status = status or 'Succeeded'
-
-    def _status_201(self, response):
-        """Process response with status code 201.
-
-        :param requests.Response response: latest REST call response.
-        :raises: BadResponse if response deserializes to CloudError.
-        """
-        status = self._get_provisioning_state(response)
-        self.status = status or 'InProgress'
-
-    def _status_202(self, response):
-        """Process response with status code 202.
-        Just sets status to 'InProgress'.
-
-        :param requests.Response response: latest REST call response.
-        """
-        self.status = 'InProgress'
-
-    def _status_204(self, response):
-        """Process response with status code 204.
-        Interpretted as successful with no payload.
-
-        :param requests.Response response: latest REST call response.
-        """
-        self.status = 'Succeeded'
-        self.resource = None
-
-    def should_do_final_get(self, response):
+    def should_do_final_get(self):
         """Check whether the polling should end doing a final GET.
 
         :param requests.Response response: latest REST call response.
@@ -282,12 +240,19 @@ class LongRunningOperation(object):
 
         if response.status_code in {200, 201, 202, 204}:
             self.initial_status_code = response.status_code
-            if self.async_url or self.location_url:
+            if self.async_url or self.location_url or response.status_code == 202:
                 self.status = 'InProgress'
-            else:
-                self._process_http_status_code(response)
-        else:
-            raise OperationFailed("Operation failed or cancelled")
+            elif response.status_code == 201:
+                status = self._get_provisioning_state(response)
+                self.status = status or 'InProgress'
+            elif response.status_code == 200:
+                status = self._get_provisioning_state(response)
+                self.status = status or 'Succeeded'
+            elif response.status_code == 204:
+                self.status = 'Succeeded'
+                self.resource = None
+            return
+        raise OperationFailed("Operation failed or cancelled")
 
     def get_status_from_location(self, response):
         """Process the latest status update retrieved from a 'location'
@@ -296,22 +261,16 @@ class LongRunningOperation(object):
         :param requests.Response response: latest REST call response.
         :raises: BadResponse if response has no body and not status 202.
         """
+        self._raise_if_bad_http_status_and_method(response)
         code = response.status_code
         if code == 202:
             self.status = "InProgress"
-        elif code == 200 or \
-             (code == 201 and self.method == "PUT") or \
-             (code == 204 and self.method in {"DELETE", "POST"}):
-
+        else:
             self.status = 'Succeeded'
             if self._is_empty(response):
                 self.resource = None
             else:
                 self.resource = self._deserialize(response)
-
-        else:
-            raise BadStatus(
-                "Invalid return status for {!r} operation".format(self.method))
 
     def get_status_from_resource(self, response):
         """Process the latest status update retrieved from the same URL as
@@ -496,7 +455,7 @@ class AzureOperationPoller(object):
 
         if failed(self._operation.status):
             raise OperationFailed("Operation failed or cancelled")
-        elif self._operation.should_do_final_get(self._response):
+        elif self._operation.should_do_final_get():
             self._response = update_cmd(initial_url)
             self._operation.get_status_from_resource(
                 self._response)
