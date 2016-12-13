@@ -63,7 +63,7 @@ def _validate(url):
     """Validate a url.
 
     :param str url: Polling URL extracted from response header.
-    :raises: ValueError if URL has not scheme or host.
+    :raises: ValueError if URL has no scheme or host.
     """
     if url is None:
         return
