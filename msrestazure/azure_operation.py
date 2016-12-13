@@ -76,7 +76,7 @@ def _get_header_url(response, header_name):
 
     :param requests.Response response: REST call response.
     :param str header_name: Header name.
-    :returns: URL if valid AND exists, None otherwise
+    :returns: URL if not None AND valid, None otherwise
     """
     url = response.headers.get(header_name)
     try:
