@@ -20,6 +20,17 @@ To install:
 Release History
 ---------------
 
+2016-12-12 Version 0.4.6
+++++++++++++++++++++++++
+
+**Bugfixes**
+
+Refactor Long Running Operation algorithm.
+
+- There is no breaking changes, however you might need to record again your offline HTTP records
+  if you use unittests with VCRpy.
+- Fix a couple of latent bugs
+
 2016-11-30 Version 0.4.5
 ++++++++++++++++++++++++
 
