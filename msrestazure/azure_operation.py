@@ -32,7 +32,7 @@ try:
 except ImportError:
     from urllib.parse import urlparse
 
-from msrest.exceptions import DeserializationError
+from msrest.exceptions import DeserializationError, ClientException
 from msrestazure.azure_exceptions import CloudError
 
 
@@ -184,7 +184,7 @@ class LongRunningOperation(object):
                 response.status_code = 200
                 resource = self.get_outputs(response)
                 response.status_code = previous_status
-            except Exception:
+            except ClientException:
                 pass
         return resource
 
@@ -251,6 +251,8 @@ class LongRunningOperation(object):
             elif response.status_code == 204:
                 self.status = 'Succeeded'
                 self.resource = None
+            else:
+                raise OperationFailed("Invalid status found")
             return
         raise OperationFailed("Operation failed or cancelled")
 
