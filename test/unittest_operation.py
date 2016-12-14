@@ -79,6 +79,7 @@ class TestLongRunningOperation(unittest.TestCase):
         response = mock.create_autospec(Response)
         response.request = mock.create_autospec(Request)
         response.request.method = 'GET'
+        response.headers = headers or {}
         
         if url == ASYNC_URL:
             response.request.url = url
@@ -110,7 +111,9 @@ class TestLongRunningOperation(unittest.TestCase):
         body = response.json()
         body = {TestLongRunningOperation.convert.sub(r'\1_\2', k).lower(): v 
                 for k, v in body.items()}
-        properties = body.get('properties')
+        properties = body.setdefault('properties', {})
+        if 'name' in body:
+            properties['name'] = body['name']
         if properties:
             properties = {TestLongRunningOperation.convert.sub(r'\1_\2', k).lower(): v 
                           for k, v in properties.items()}
@@ -118,6 +121,7 @@ class TestLongRunningOperation(unittest.TestCase):
             body.update(properties)
             resource = SimpleResource(**body)
         else:
+            raise DeserializationError("Impossible to deserialize")
             resource = SimpleResource(**body)
         return resource
 
@@ -128,11 +132,30 @@ class TestLongRunningOperation(unittest.TestCase):
         response = TestLongRunningOperation.mock_send('PUT', 1000, {})
         op = LongRunningOperation(response(), lambda x:None)
         with self.assertRaises(BadStatus):
-            op.get_initial_status(response())
+            op.set_initial_status(response())
         with self.assertRaises(CloudError):
             AzureOperationPoller(response,
                 TestLongRunningOperation.mock_outputs,
                 TestLongRunningOperation.mock_update, 0).result()
+
+        # Test with no polling necessary
+        response_body = {
+            'properties':{'provisioningState': 'Succeeded'},
+            'name': TEST_NAME
+        }
+        response = TestLongRunningOperation.mock_send(
+            'PUT', 201,
+            {}, response_body
+        )
+        def no_update_allowed(url, headers=None):
+            raise ValueError("Should not try to update")
+        poll = AzureOperationPoller(response,
+            TestLongRunningOperation.mock_outputs,
+            no_update_allowed,
+            0
+        )
+        self.assertEqual(poll.result().name, TEST_NAME)
+        self.assertFalse(hasattr(poll._response, 'randomFieldFromPollAsyncOpHeader'))
 
         # Test polling from azure-asyncoperation header
         response = TestLongRunningOperation.mock_send(
@@ -148,6 +171,17 @@ class TestLongRunningOperation(unittest.TestCase):
         response = TestLongRunningOperation.mock_send(
             'PUT', 201,
             {'location': LOCATION_URL})
+        poll = AzureOperationPoller(response,
+            TestLongRunningOperation.mock_outputs,
+            TestLongRunningOperation.mock_update, 0)
+        self.assertEqual(poll.result().name, TEST_NAME)
+        self.assertIsNone(poll._response.randomFieldFromPollLocationHeader)
+
+        # Test polling initial payload invalid (SQLDb)
+        response_body = {}  # Empty will raise
+        response = TestLongRunningOperation.mock_send(
+            'PUT', 201,
+            {'location': LOCATION_URL}, response_body)
         poll = AzureOperationPoller(response,
             TestLongRunningOperation.mock_outputs,
             TestLongRunningOperation.mock_update, 0)
@@ -196,6 +230,28 @@ class TestLongRunningOperation(unittest.TestCase):
         self.assertEqual(poll.result().name, TEST_NAME)
         self.assertFalse(hasattr(poll._response, 'randomFieldFromPollAsyncOpHeader'))
 
+        # Test polling from location header
+        response = TestLongRunningOperation.mock_send(
+            'PATCH', 200,
+            {'location': LOCATION_URL},
+            body={'properties':{'provisioningState': 'Succeeded'}})
+        poll = AzureOperationPoller(response,
+            TestLongRunningOperation.mock_outputs,
+            TestLongRunningOperation.mock_update, 0)
+        self.assertEqual(poll.result().name, TEST_NAME)
+        self.assertIsNone(poll._response.randomFieldFromPollLocationHeader)
+
+        # Test polling from azure-asyncoperation header
+        response = TestLongRunningOperation.mock_send(
+            'PATCH', 200,
+            {'azure-asyncoperation': ASYNC_URL},
+            body={'properties':{'provisioningState': 'Succeeded'}})
+        poll = AzureOperationPoller(response,
+            TestLongRunningOperation.mock_outputs,
+            TestLongRunningOperation.mock_update, 0)
+        self.assertEqual(poll.result().name, TEST_NAME)
+        self.assertFalse(hasattr(poll._response, 'randomFieldFromPollAsyncOpHeader'))
+
         # Test fail to poll from azure-asyncoperation header
         response = TestLongRunningOperation.mock_send(
             'PATCH', 202,
@@ -214,13 +270,25 @@ class TestLongRunningOperation(unittest.TestCase):
                 TestLongRunningOperation.mock_outputs,
                 TestLongRunningOperation.mock_update, 0).result()
 
-    def test_long_running_post_delete(self):
+    def test_long_running_delete(self):
+        # Test polling from azure-asyncoperation header
+        response = TestLongRunningOperation.mock_send(
+            'DELETE', 202,
+            {'azure-asyncoperation': ASYNC_URL})
+        poll = AzureOperationPoller(response,
+            TestLongRunningOperation.mock_outputs,
+            TestLongRunningOperation.mock_update, 0)
+        poll.wait()
+        self.assertIsNone(poll.result())
+        self.assertIsNone(poll._response.randomFieldFromPollAsyncOpHeader)
+
+    def test_long_running_post(self):
 
         # Test throw on non LRO related status code
         response = TestLongRunningOperation.mock_send('POST', 201, {})
         op = LongRunningOperation(response(), lambda x:None)
         with self.assertRaises(BadStatus):
-            op.get_initial_status(response())
+            op.set_initial_status(response())
         with self.assertRaises(CloudError):
             AzureOperationPoller(response,
                 TestLongRunningOperation.mock_outputs,
