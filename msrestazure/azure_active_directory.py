@@ -355,21 +355,21 @@ class UserPassCredentials(AADRefreshMixin, AADMixin):
 
         :raises: AuthenticationError if credentials invalid, or call fails.
         """
-        session = self._setup_session()
-        optional = {}
-        if self.secret:
-            optional['client_secret'] = self.secret
-        try:
-            token = session.fetch_token(self.token_uri, client_id=self.id,
-                                        username=self.username,
-                                        password=self.password,
-                                        resource=self.resource,
-                                        verify=self.verify,
-                                        **optional)
-        except (RequestException, OAuth2Error, InvalidGrantError) as err:
-            raise_with_traceback(AuthenticationError, "", err)
+        with self._setup_session() as session:
+            optional = {}
+            if self.secret:
+                optional['client_secret'] = self.secret
+            try:
+                token = session.fetch_token(self.token_uri, client_id=self.id,
+                                            username=self.username,
+                                            password=self.password,
+                                            resource=self.resource,
+                                            verify=self.verify,
+                                            **optional)
+            except (RequestException, OAuth2Error, InvalidGrantError) as err:
+                raise_with_traceback(AuthenticationError, "", err)
 
-        self.token = token
+            self.token = token
 
 
 class ServicePrincipalCredentials(AADRefreshMixin, AADMixin):
@@ -422,17 +422,17 @@ class ServicePrincipalCredentials(AADRefreshMixin, AADMixin):
 
         :raises: AuthenticationError if credentials invalid, or call fails.
         """
-        session = self._setup_session()
-        try:
-            token = session.fetch_token(self.token_uri, client_id=self.id,
-                                        resource=self.resource,
-                                        client_secret=self.secret,
-                                        response_type="client_credentials",
-                                        verify=self.verify)
-        except (RequestException, OAuth2Error, InvalidGrantError) as err:
-            raise_with_traceback(AuthenticationError, "", err)
-        else:
-            self.token = token
+        with self._setup_session() as session:
+            try:
+                token = session.fetch_token(self.token_uri, client_id=self.id,
+                                            resource=self.resource,
+                                            client_secret=self.secret,
+                                            response_type="client_credentials",
+                                            verify=self.verify)
+            except (RequestException, OAuth2Error, InvalidGrantError) as err:
+                raise_with_traceback(AuthenticationError, "", err)
+            else:
+                self.token = token
 
 
 class InteractiveCredentials(AADMixin):
@@ -495,11 +495,11 @@ class InteractiveCredentials(AADMixin):
         """
         if msa:
             additional_args['domain_hint'] = 'live.com'
-        session = self._setup_session()
-        auth_url, state = session.authorization_url(self.auth_uri,
-                                                    resource=self.resource,
-                                                    **additional_args)
-        return auth_url, state
+        with self._setup_session() as session:
+            auth_url, state = session.authorization_url(self.auth_uri,
+                                                        resource=self.resource,
+                                                        **additional_args)
+            return auth_url, state
 
     def set_token(self, response_url):
         """Get token using Authorization Code from redirected URL.
@@ -509,21 +509,21 @@ class InteractiveCredentials(AADMixin):
         :raises: AuthenticationError if credentials invalid, or call fails.
         """
         self._check_state(response_url)
-        session = self._setup_session()
+        with self._setup_session() as session:
 
-        if response_url.startswith(_http(self.redirect)):
-            response_url = _https(response_url)
-        elif not response_url.startswith(_https(self.redirect)):
-            response_url = _https(self.redirect, response_url)
-        try:
-            token = session.fetch_token(self.token_uri,
-                                        authorization_response=response_url,
-                                        verify=self.verify)
-        except (InvalidGrantError, OAuth2Error,
-                MismatchingStateError, RequestException) as err:
-            raise_with_traceback(AuthenticationError, "", err)
-        else:
-            self.token = token
+            if response_url.startswith(_http(self.redirect)):
+                response_url = _https(response_url)
+            elif not response_url.startswith(_https(self.redirect)):
+                response_url = _https(self.redirect, response_url)
+            try:
+                token = session.fetch_token(self.token_uri,
+                                            authorization_response=response_url,
+                                            verify=self.verify)
+            except (InvalidGrantError, OAuth2Error,
+                    MismatchingStateError, RequestException) as err:
+                raise_with_traceback(AuthenticationError, "", err)
+            else:
+                self.token = token
 
 
 class AdalAuthentication(Authentication):  # pylint: disable=too-few-public-methods
