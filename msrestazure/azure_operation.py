@@ -98,10 +98,6 @@ class OperationFailed(Exception):
     pass
 
 
-class OperationFinished(Exception):
-    pass
-
-
 class SimpleResource:
     """An implementation of Python 3 SimpleNamespace.
     Used to deserialize resource objects from response bodies where
@@ -340,30 +336,39 @@ class AzureOperationPoller(object):
 
     def __init__(self, send_cmd, output_cmd, update_cmd, timeout=30):
         self._timeout = timeout
-        self._response = None
-        self._operation = None
-        self._exception = None
         self._callbacks = []
-        self._done = threading.Event()
-        self._thread = threading.Thread(
-            target=self._start, args=(send_cmd, update_cmd, output_cmd))
-        self._thread.daemon = True
-        self._thread.start()
 
-    def _start(self, send_cmd, update_cmd, output_cmd):
-        """Start the long running operation.
-        On completetion, runs any callbacks.
-
-        :param callable send_cmd: The API request to initiate the operation.
-        :param callable update_cmd: The API reuqest to check the status of
-         the operation.
-        :param callable output_cmd: The function to deserialize the resource
-         of the operation.
-        """
         try:
             self._response = send_cmd()
             self._operation = LongRunningOperation(self._response, output_cmd)
             self._operation.set_initial_status(self._response)
+        except BadStatus:
+            self._operation.status = 'Failed'
+            raise CloudError(self._response)
+        except BadResponse as err:
+            self._operation.status = 'Failed'
+            raise CloudError(self._response, str(err))
+        except OperationFailed:
+            raise CloudError(self._response)
+
+        self._thread = None
+        self._done = None
+        self._exception = None
+        if not finished(self.status()):
+            self._done = threading.Event()
+            self._thread = threading.Thread(
+                target=self._start, args=(update_cmd,))
+            self._thread.daemon = True
+            self._thread.start()
+
+    def _start(self, update_cmd):
+        """Start the long running operation.
+        On completetion, runs any callbacks.
+
+        :param callable update_cmd: The API reuqest to check the status of
+         the operation.
+        """
+        try:
             self._poll(update_cmd)
 
         except BadStatus:
@@ -376,9 +381,6 @@ class AzureOperationPoller(object):
 
         except OperationFailed:
             self._exception = CloudError(self._response)
-
-        except OperationFinished:
-            pass
 
         except Exception as err:
             self._exception = err
@@ -422,16 +424,14 @@ class AzureOperationPoller(object):
 
         :param callable update_cmd: The function to call to retrieve the
          latest status of the long running operation.
-        :raises: OperationFinished if operation status 'Succeeded'.
         :raises: OperationFailed if operation status 'Failed' or 'Cancelled'.
         :raises: BadStatus if response status invalid.
         :raises: BadResponse if response invalid.
         """
         initial_url = self._response.request.url
 
-        while not finished(self._operation.status):
+        while not finished(self.status()):
             self._delay()
-            url = self._response.request.url
             headers = self._polling_cookie()
 
             if self._operation.async_url:
@@ -462,6 +462,14 @@ class AzureOperationPoller(object):
             self._operation.get_status_from_resource(
                 self._response)
 
+    def status(self):
+        """Returns the current status string.
+
+        :returns: The current status string
+        :rtype: str
+        """
+        return self._operation.status
+
     def result(self, timeout=None):
         """Return the result of the long running operation, or
         the result available after the specified timeout.
@@ -481,6 +489,8 @@ class AzureOperationPoller(object):
          operation to complete.
         :raises CloudError: Server problem with the query.
         """
+        if self._thread is None:
+            return
         self._thread.join(timeout=timeout)
         try:
             raise self._exception
@@ -492,7 +502,7 @@ class AzureOperationPoller(object):
 
         :returns: 'True' if the process has completed, else 'False'.
         """
-        return not self._thread.isAlive()
+        return self._thread is None or not self._thread.isAlive()
 
     def add_done_callback(self, func):
         """Add callback function to be run once the long running operation
@@ -503,7 +513,7 @@ class AzureOperationPoller(object):
         :raises: ValueError if the long running operation has already
          completed.
         """
-        if self._done.is_set():
+        if self._done is None or self._done.is_set():
             raise ValueError("Process is complete.")
         self._callbacks.append(func)
 
@@ -514,6 +524,6 @@ class AzureOperationPoller(object):
         :raises: ValueError if the long running operation has already
          completed.
         """
-        if self._done.is_set():
+        if self._done is None or self._done.is_set():
             raise ValueError("Process is complete.")
         self._callbacks = [c for c in self._callbacks if c != func]
