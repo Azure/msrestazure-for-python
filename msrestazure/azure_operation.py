@@ -173,15 +173,19 @@ class LongRunningOperation(object):
         resource = self.get_outputs(response)
         response.status_code = previous_status
 
-        # Hack for Storage mostly, to workaround the bug in the Python generator
+        # Hack for Storage or SQL, to workaround the bug in the Python generator
         if resource is None:
-            try:
-                previous_status = response.status_code
-                response.status_code = 200
-                resource = self.get_outputs(response)
-                response.status_code = previous_status
-            except ClientException:
-                pass
+            previous_status = response.status_code
+            for status_code_to_test in [200, 201]:
+                try:
+                    response.status_code = status_code_to_test
+                    resource = self.get_outputs(response)
+                except ClientException:
+                    pass
+                else:
+                    return resource
+                finally:
+                    response.status_code = previous_status
         return resource
 
     def _get_async_status(self, response):
