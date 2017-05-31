@@ -20,7 +20,19 @@ To install:
 Release History
 ---------------
 
-2016-01-23 Version 0.4.7
+2017-05-31 Version 0.4.8
+++++++++++++++++++++++++
+
+**Bugfixes**
+
+- Fix LRO if first call never returns 200, but ends on 201 (#26)
+- FiX LRO AttributeError if timeout is short (#21)
+
+**Features**
+
+- Expose a "status()" method in AzureOperationPoller (#18)
+
+2017-01-23 Version 0.4.7
 ++++++++++++++++++++++++
 
 **Bugfixes**
