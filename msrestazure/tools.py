@@ -60,7 +60,7 @@ def _extract_subscription_url(url):
     """Extract the first part of the URL, just after subscription:
     https://management.azure.com/subscriptions/00000000-0000-0000-0000-000000000000/
     """
-    match = re.match(r".*/subscriptions/[0-9-]+/", url, re.IGNORECASE)
+    match = re.match(r".*/subscriptions/[a-f0-9-]+/", url, re.IGNORECASE)
     if not match:
         raise ValueError("Unable to extract subscription ID from URL")
     return match.group(0)

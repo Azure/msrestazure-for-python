@@ -48,7 +48,7 @@ class TestTools(unittest.TestCase):
         """
 
         provider_url = ("https://management.azure.com/"
-                        "subscriptions/00000000-0000-0000-0000-000000000000/"
+                        "subscriptions/12345678-9abc-def0-0000-000000000000/"
                         "resourceGroups/clitest.rg000001/"
                         "providers/Microsoft.Sql/servers/ygserver123?api-version=2014-04-01")
 
@@ -68,7 +68,7 @@ class TestTools(unittest.TestCase):
                                content_type="application/json")
 
         register_url = ("https://management.azure.com/"
-                        "subscriptions/00000000-0000-0000-0000-000000000000/"
+                        "subscriptions/12345678-9abc-def0-0000-000000000000/"
                         "providers/Microsoft.Sql/register?api-version=2016-02-01")
 
         register_post_result = {
