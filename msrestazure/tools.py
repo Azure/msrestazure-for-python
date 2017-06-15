@@ -44,7 +44,6 @@ def register_rp_hook(r, *args, **kwargs):
             url_prefix = _extract_subscription_url(r.request.url)
             _register_rp(session, url_prefix, rp_name)
             return session.send(r.request)
-    return r
 
 def _check_rp_not_registered_err(response):
     try:
