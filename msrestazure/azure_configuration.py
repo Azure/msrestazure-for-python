@@ -29,10 +29,15 @@ try:
 except ImportError:
     from ConfigParser import NoOptionError
 
-from .version import msrestazure_version
+import logging
+
 from msrest import Configuration
 from msrest.exceptions import raise_with_traceback
 
+from .version import msrestazure_version
+from .tools import register_rp_hook
+
+_LOGGER = logging.getLogger(__name__)
 
 class AzureConfiguration(Configuration):
     """Azure specific client configuration.
@@ -47,6 +52,14 @@ class AzureConfiguration(Configuration):
         self.accept_language = 'en-US'
         self.generate_client_request_id = True
         self.add_user_agent("msrest_azure/{}".format(msrestazure_version))
+
+        # Check if "hasattr", just in case msrest is older than msrestazure
+        if hasattr(self, 'hooks'):
+            self.hooks.append(register_rp_hook)
+        else:
+            _LOGGER.warning(("Your 'msrest' version is too old to activate all the ",
+                             "features of 'msrestazure'. Please update using",
+                             "'pip install -U msrest'"))
 
     def save(self, filepath):
         """Save current configuration to file.
