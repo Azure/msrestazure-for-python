@@ -28,6 +28,7 @@ import json
 import re
 import logging
 import time
+import uuid
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,7 +44,13 @@ def register_rp_hook(r, *args, **kwargs):
             session = kwargs['msrest']['session']
             url_prefix = _extract_subscription_url(r.request.url)
             _register_rp(session, url_prefix, rp_name)
-            return session.send(r.request)
+            time.sleep(10)
+            req = r.request
+            # Change the 'x-ms-client-request-id' otherwise the Azure endpoint
+            # just returns the same 409 payload without looking at the actual query
+            if 'x-ms-client-request-id' in req.headers:
+                req['x-ms-client-request-id'] = str(uuid.uuid1())
+            return session.send(req)
 
 def _check_rp_not_registered_err(response):
     try:
