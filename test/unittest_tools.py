@@ -67,24 +67,29 @@ class TestTools(unittest.TestCase):
                                ],
                                content_type="application/json")
 
-        register_url = ("https://management.azure.com/"
-                        "subscriptions/12345678-9abc-def0-0000-000000000000/"
-                        "providers/Microsoft.Sql/register?api-version=2016-02-01")
+        register_post_url = ("https://management.azure.com/"
+                             "subscriptions/12345678-9abc-def0-0000-000000000000/"
+                             "providers/Microsoft.Sql/register?api-version=2016-02-01")
 
         register_post_result = {
             "registrationState":"Registering"
         }
+
+        register_get_url = ("https://management.azure.com/"
+                            "subscriptions/12345678-9abc-def0-0000-000000000000/"
+                            "providers/Microsoft.Sql?api-version=2016-02-01")
+
         register_get_result = {
             "registrationState":"Registered"
         }
 
         httpretty.register_uri(httpretty.POST,
-                               register_url,
+                               register_post_url,
                                body=json.dumps(register_post_result),
                                content_type="application/json")
 
         httpretty.register_uri(httpretty.GET,
-                               register_url,
+                               register_get_url,
                                body=json.dumps(register_get_result),
                                content_type="application/json")
 

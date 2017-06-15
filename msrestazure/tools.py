@@ -67,14 +67,15 @@ def _extract_subscription_url(url):
 
 def _register_rp(session, url_prefix, rp_name):
     """Synchronously register the RP is paremeter."""
-    url = "{}providers/{}/register?api-version=2016-02-01".format(url_prefix, rp_name)
+    post_url = "{}providers/{}/register?api-version=2016-02-01".format(url_prefix, rp_name)
+    get_url = "{}providers/{}?api-version=2016-02-01".format(url_prefix, rp_name)
     _LOGGER.warning("Resource provider '%s' used by the command is not "
-                    "registered. We are registering for you", rp_name)
-    session.post(url)
+                    "registered. We are registering for you.", rp_name)
+    session.post(post_url)
 
     while True:
         time.sleep(10)
-        rp_info = session.get(url).json()
+        rp_info = session.get(get_url).json()
         if rp_info['registrationState'] == 'Registered':
             _LOGGER.warning("Registration succeeded.")
             break
