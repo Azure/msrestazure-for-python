@@ -57,8 +57,8 @@ class AzureConfiguration(Configuration):
         if hasattr(self, 'hooks'):
             self.hooks.append(register_rp_hook)
         else:
-            _LOGGER.warning(("Your 'msrest' version is too old to activate all the ",
-                             "features of 'msrestazure'. Please update using",
+            _LOGGER.warning(("Your 'msrest' version is too old to activate all the "
+                             "features of 'msrestazure'. Please update using"
                              "'pip install -U msrest'"))
 
     def save(self, filepath):
