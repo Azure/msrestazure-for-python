@@ -104,3 +104,54 @@ class TestTools(unittest.TestCase):
 
         response = session.put(provider_url)
         self.assertTrue(response.json()['success'])
+
+    @httpretty.activate
+    @mock.patch('time.sleep', return_value=None)
+    def test_register_failed(self, time_sleep):
+        """Protocol:
+        - We call the provider and get a 409 provider error
+        - Now we POST register provider and get "Registering"
+        - This POST failed
+        """
+
+        provider_url = ("https://management.azure.com/"
+                        "subscriptions/12345678-9abc-def0-0000-000000000000/"
+                        "resourceGroups/clitest.rg000001/"
+                        "providers/Microsoft.Sql/servers/ygserver123?api-version=2014-04-01")
+
+        provider_error = ('{"error":{"code":"MissingSubscriptionRegistration", '
+                          '"message":"The subscription registration is in \'Unregistered\' state. '
+                          'The subscription must be registered to use namespace \'Microsoft.Sql\'. '
+                          'See https://aka.ms/rps-not-found for how to register subscriptions."}}')
+
+        provider_success = '{"success": true}'
+
+        httpretty.register_uri(httpretty.PUT,
+                               provider_url,
+                               responses=[
+                                   httpretty.Response(body=provider_error, status=409),
+                                   httpretty.Response(body=provider_success),
+                               ],
+                               content_type="application/json")
+
+        register_post_url = ("https://management.azure.com/"
+                             "subscriptions/12345678-9abc-def0-0000-000000000000/"
+                             "providers/Microsoft.Sql/register?api-version=2016-02-01")
+
+        httpretty.register_uri(httpretty.POST,
+                               register_post_url,
+                               status=409,
+                               content_type="application/json")
+
+        configuration = AzureConfiguration(None)
+        register_rp_hook = configuration.hooks[0]
+
+        session = requests.Session()
+        def rp_cb(r, *args, **kwargs):
+            kwargs.setdefault("msrest", {})["session"] = session
+            return register_rp_hook(r, *args, **kwargs)
+        session.hooks['response'].append(rp_cb)
+
+        response = session.put(provider_url)
+        self.assertEqual(409, response.status_code)
+

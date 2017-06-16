@@ -43,13 +43,13 @@ def register_rp_hook(r, *args, **kwargs):
         if rp_name:
             session = kwargs['msrest']['session']
             url_prefix = _extract_subscription_url(r.request.url)
-            _register_rp(session, url_prefix, rp_name)
-            time.sleep(10)
+            if not _register_rp(session, url_prefix, rp_name):
+                return
             req = r.request
             # Change the 'x-ms-client-request-id' otherwise the Azure endpoint
             # just returns the same 409 payload without looking at the actual query
             if 'x-ms-client-request-id' in req.headers:
-                req['x-ms-client-request-id'] = str(uuid.uuid1())
+                req.headers['x-ms-client-request-id'] = str(uuid.uuid1())
             return session.send(req)
 
 def _check_rp_not_registered_err(response):
@@ -72,16 +72,22 @@ def _extract_subscription_url(url):
     return match.group(0)
 
 def _register_rp(session, url_prefix, rp_name):
-    """Synchronously register the RP is paremeter."""
+    """Synchronously register the RP is paremeter.
+    
+    Return False if we have a reason to believe this didn't work
+    """
     post_url = "{}providers/{}/register?api-version=2016-02-01".format(url_prefix, rp_name)
     get_url = "{}providers/{}?api-version=2016-02-01".format(url_prefix, rp_name)
-    _LOGGER.warning("Resource provider '%s' used by the command is not "
+    _LOGGER.warning("Resource provider '%s' used by this operation is not "
                     "registered. We are registering for you.", rp_name)
-    session.post(post_url)
+    post_response = session.post(post_url)
+    if post_response.status_code != 200:
+        _LOGGER.warning("Registration failed. Please register manually.")
+        return False
 
     while True:
         time.sleep(10)
         rp_info = session.get(get_url).json()
         if rp_info['registrationState'] == 'Registered':
             _LOGGER.warning("Registration succeeded.")
-            break
+            return True
