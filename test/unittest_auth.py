@@ -213,13 +213,20 @@ class TestInteractiveCredentials(unittest.TestCase):
         creds.token_uri = "token_uri"
         creds._check_state.return_value = True
         creds.verify = True
+        mock_proxies = {
+            'http': 'http://myproxy:8080',
+            'https': 'https://myproxy:8080',
+        }
+        creds.proxies = mock_proxies
 
         InteractiveCredentials.set_token(creds, "response")
         self.assertEqual(creds.token, session.fetch_token.return_value)
         session.fetch_token.assert_called_with(
             "token_uri",
             authorization_response="https://my_service.com/response",
-            verify=True)
+            verify=True,
+            proxies=mock_proxies,
+        )
 
         creds._check_state.side_effect = ValueError("failed")
         with self.assertRaises(ValueError):
@@ -266,13 +273,18 @@ class TestInteractiveCredentials(unittest.TestCase):
         creds.id = 123
         creds.secret = 'secret'
         creds.resource = 'resource'
+        mock_proxies = {
+            'http': 'http://myproxy:8080',
+            'https': 'https://myproxy:8080',
+        }
+        creds.proxies = mock_proxies
 
         ServicePrincipalCredentials.set_token(creds)
         self.assertEqual(creds.token, session.fetch_token.return_value)
         session.fetch_token.assert_called_with(
             "token_uri", client_id=123, client_secret='secret',
             resource='resource', response_type="client_credentials",
-            verify=True)
+            verify=True, proxies=mock_proxies)
 
         session.fetch_token.side_effect = oauthlib.oauth2.OAuth2Error
 
@@ -282,15 +294,21 @@ class TestInteractiveCredentials(unittest.TestCase):
         session = mock.create_autospec(OAuth2Session)
         with mock.patch.object(
             ServicePrincipalCredentials, '_setup_session', return_value=session):
-            
+
+            proxies = {'http': 'http://myproxy:80'}
             creds = ServicePrincipalCredentials("client_id", "secret", 
-                                                verify=False, tenant="private")
+                                                verify=False, tenant="private",
+                                                proxies=proxies)
 
             session.fetch_token.assert_called_with(
                 "https://login.microsoftonline.com/private/oauth2/token",
-                client_id="client_id", client_secret='secret',
+                client_id="client_id",
+                client_secret='secret',
                 resource='https://management.core.windows.net/',
-                response_type="client_credentials", verify=False)
+                response_type="client_credentials",
+                verify=False,
+                proxies=proxies,
+            )
 
         with mock.patch.object(
             ServicePrincipalCredentials, '_setup_session', return_value=session):
@@ -302,7 +320,7 @@ class TestInteractiveCredentials(unittest.TestCase):
                 "https://login.chinacloudapi.cn/private/oauth2/token",
                 client_id="client_id", client_secret='secret',
                 resource='https://management.core.chinacloudapi.cn/',
-                response_type="client_credentials", verify=False)
+                response_type="client_credentials", verify=False, proxies=None)
 
     def test_user_pass_credentials(self):
 
@@ -321,12 +339,19 @@ class TestInteractiveCredentials(unittest.TestCase):
         creds.secret = 'secret'
         creds.resource = 'resource'
         creds.id = "id"
+        mock_proxies = {
+            'http': 'http://myproxy:8080',
+            'https': 'https://myproxy:8080',
+        }
+        creds.proxies = mock_proxies
 
         UserPassCredentials.set_token(creds)
         self.assertEqual(creds.token, session.fetch_token.return_value)
         session.fetch_token.assert_called_with(
             "token_uri", client_id="id", username='user',
-            client_secret="secret", password='pass', resource='resource', verify=True)
+            client_secret="secret", password='pass', resource='resource', verify=True,
+            proxies=mock_proxies
+        )
 
         session.fetch_token.side_effect = oauthlib.oauth2.OAuth2Error
 
@@ -336,14 +361,18 @@ class TestInteractiveCredentials(unittest.TestCase):
         session = mock.create_autospec(OAuth2Session)
         with mock.patch.object(
             UserPassCredentials, '_setup_session', return_value=session):
-            
+
+            proxies = {'http': 'http://myproxy:8080'}
             creds = UserPassCredentials("my_username", "my_password", 
-                                        verify=False, tenant="private", resource='resource')
+                                        verify=False, tenant="private", resource='resource',
+                                        proxies=proxies)
 
             session.fetch_token.assert_called_with(
                 "https://login.microsoftonline.com/private/oauth2/token",
                 client_id='04b07795-8ddb-461a-bbee-02f9e1bf7b46', username='my_username',
-                password='my_password', resource='resource', verify=False)
+                password='my_password', resource='resource', verify=False,
+                proxies=proxies
+            )
 
         with mock.patch.object(
             UserPassCredentials, '_setup_session', return_value=session):
@@ -354,7 +383,8 @@ class TestInteractiveCredentials(unittest.TestCase):
             session.fetch_token.assert_called_with(
                 "https://login.chinacloudapi.cn/private/oauth2/token",
                 client_id="client_id", username='my_username',
-                password='my_password', resource='https://management.core.chinacloudapi.cn/', verify=False)
+                password='my_password', resource='https://management.core.chinacloudapi.cn/',
+                verify=False, proxies=None)
 
     def test_adal_authentication(self):
         def success_auth():
