@@ -20,6 +20,16 @@ To install:
 Release History
 ---------------
 
+2017-06-19 Version 0.4.9
+++++++++++++++++++++++++
+
+**Features**
+
+- Add proxies parameters to ServicePrincipal and UserPassword credentials class #29
+- Add automatic Azure provider registration if needed (requires msrest 0.4.10) #28
+
+Thank you to likel for his contribution
+
 2017-05-31 Version 0.4.8
 ++++++++++++++++++++++++
 
