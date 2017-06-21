@@ -122,6 +122,8 @@ class AADMixin(OAuthTokenAuthentication):
               is 'https://management.core.windows.net/'.
             - verify (bool): Verify secure connection, default is 'True'.
             - keyring (str): Name of local token cache, default is 'AzureAAD'.
+            - proxies (dict): Dictionary mapping protocol or protocol and 
+              hostname to the URL of the proxy.
         """
         if kwargs.get('china'):
             auth_endpoint = self._china_auth_endpoint
@@ -138,6 +140,7 @@ class AADMixin(OAuthTokenAuthentication):
         self.verify = kwargs.get('verify', True)
         self.cred_store = kwargs.get('keyring', self._keyring)
         self.resource = kwargs.get('resource', resource)
+        self.proxies = kwargs.get('proxies')
         self.state = oauth.oauth2_session.generate_token()
         self.store_key = "{}_{}".format(
             self._auth_endpoint.strip('/'), self.store_key)
@@ -310,6 +313,8 @@ class UserPassCredentials(AADRefreshMixin, AADMixin):
     - keyring (str): Name of local token cache, default is 'AzureAAD'.
     - cached (bool): If true, will not attempt to collect a token,
       which can then be populated later from a cached token.
+    - proxies (dict): Dictionary mapping protocol or protocol and
+      hostname to the URL of the proxy.
 
     :param str username: Account username.
     :param str password: Account password.
@@ -365,6 +370,7 @@ class UserPassCredentials(AADRefreshMixin, AADMixin):
                                             password=self.password,
                                             resource=self.resource,
                                             verify=self.verify,
+                                            proxies=self.proxies,
                                             **optional)
             except (RequestException, OAuth2Error, InvalidGrantError) as err:
                 raise_with_traceback(AuthenticationError, "", err)
@@ -388,6 +394,8 @@ class ServicePrincipalCredentials(AADRefreshMixin, AADMixin):
     - keyring (str): Name of local token cache, default is 'AzureAAD'.
     - cached (bool): If true, will not attempt to collect a token,
       which can then be populated later from a cached token.
+    - proxies (dict): Dictionary mapping protocol or protocol and
+      hostname to the URL of the proxy.
 
     :param str client_id: Client ID.
     :param str secret: Client secret.
@@ -428,7 +436,8 @@ class ServicePrincipalCredentials(AADRefreshMixin, AADMixin):
                                             resource=self.resource,
                                             client_secret=self.secret,
                                             response_type="client_credentials",
-                                            verify=self.verify)
+                                           verify=self.verify,
+                                           proxies=self.proxies)
             except (RequestException, OAuth2Error, InvalidGrantError) as err:
                 raise_with_traceback(AuthenticationError, "", err)
             else:
@@ -451,6 +460,8 @@ class InteractiveCredentials(AADMixin):
     - keyring (str): Name of local token cache, default is 'AzureAAD'.
     - cached (bool): If true, will not attempt to collect a token,
       which can then be populated later from a cached token.
+    - proxies (dict): Dictionary mapping protocol or protocol and
+      hostname to the URL of the proxy.
 
     :param str client_id: Client ID.
     :param str redirect: Redirect URL.
@@ -518,7 +529,8 @@ class InteractiveCredentials(AADMixin):
             try:
                 token = session.fetch_token(self.token_uri,
                                             authorization_response=response_url,
-                                            verify=self.verify)
+                                            verify=self.verify,
+                                            proxies=self.proxies)
             except (InvalidGrantError, OAuth2Error,
                     MismatchingStateError, RequestException) as err:
                 raise_with_traceback(AuthenticationError, "", err)
