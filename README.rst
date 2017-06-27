@@ -20,6 +20,14 @@ To install:
 Release History
 ---------------
 
+2017-06-27 Version 0.4.10
++++++++++++++++++++++++++
+
+**Bugfixes**
+
+- Accept PATCH/201 as LRO valid state
+- Close token session on exit (ServicePrincipal and UserPassword credentials)
+
 2017-06-19 Version 0.4.9
 ++++++++++++++++++++++++
 
