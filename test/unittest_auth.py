@@ -1,6 +1,6 @@
 ﻿#--------------------------------------------------------------------------
 #
-# Copyright (c) Microsoft Corporation. All rights reserved. 
+# Copyright (c) Microsoft Corporation. All rights reserved.
 #
 # The MIT License (MIT)
 #
@@ -54,7 +54,7 @@ class TestInteractiveCredentials(unittest.TestCase):
     def setUp(self):
         self.cfg = AzureConfiguration("https://my_service.com")
         return super(TestInteractiveCredentials, self).setUp()
-    
+
     def test_http(self):
 
         test_uri = "http://my_service.com"
@@ -182,10 +182,11 @@ class TestInteractiveCredentials(unittest.TestCase):
 
         creds = mock.create_autospec(InteractiveCredentials)
         session = mock.create_autospec(OAuth2Session)
+        session.__enter__.return_value = session
         creds._setup_session.return_value = session
         creds.auth_uri = "auth_uri"
         creds.resource = "auth_resource"
-        session.authorization_url.return_value = ("a","b")
+        session.authorization_url.return_value = ("a", "b")
 
         url, state = InteractiveCredentials.get_auth_url(creds)
         self.assertEqual(url, "a")
@@ -202,6 +203,7 @@ class TestInteractiveCredentials(unittest.TestCase):
 
         creds = mock.create_autospec(InteractiveCredentials)
         session = mock.create_autospec(OAuth2Session)
+        session.__enter__.return_value = session
         creds._setup_session.return_value = session
 
         session.fetch_token.return_value = {
@@ -262,6 +264,7 @@ class TestInteractiveCredentials(unittest.TestCase):
 
         creds = mock.create_autospec(ServicePrincipalCredentials)
         session = mock.create_autospec(OAuth2Session)
+        session.__enter__.return_value = session
         creds._setup_session.return_value = session
 
         session.fetch_token.return_value = {
@@ -292,6 +295,7 @@ class TestInteractiveCredentials(unittest.TestCase):
             ServicePrincipalCredentials.set_token(creds)
 
         session = mock.create_autospec(OAuth2Session)
+        session.__enter__.return_value = session
         with mock.patch.object(
             ServicePrincipalCredentials, '_setup_session', return_value=session):
 
@@ -312,7 +316,7 @@ class TestInteractiveCredentials(unittest.TestCase):
 
         with mock.patch.object(
             ServicePrincipalCredentials, '_setup_session', return_value=session):
-            
+
             creds = ServicePrincipalCredentials("client_id", "secret", china=True,
                                                 verify=False, tenant="private")
 
@@ -326,6 +330,7 @@ class TestInteractiveCredentials(unittest.TestCase):
 
         creds = mock.create_autospec(UserPassCredentials)
         session = mock.create_autospec(OAuth2Session)
+        session.__enter__.return_value = session
         creds._setup_session.return_value = session
 
         session.fetch_token.return_value = {
@@ -359,6 +364,7 @@ class TestInteractiveCredentials(unittest.TestCase):
             UserPassCredentials.set_token(creds)
 
         session = mock.create_autospec(OAuth2Session)
+        session.__enter__.return_value = session
         with mock.patch.object(
             UserPassCredentials, '_setup_session', return_value=session):
 
@@ -376,7 +382,7 @@ class TestInteractiveCredentials(unittest.TestCase):
 
         with mock.patch.object(
             UserPassCredentials, '_setup_session', return_value=session):
-            
+
             creds = UserPassCredentials("my_username", "my_password", client_id="client_id",
                                         verify=False, tenant="private", china=True)
 
