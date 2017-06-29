@@ -130,13 +130,13 @@ class AADMixin(OAuthTokenAuthentication):
                        "please use "
                        "cloud_environment=msrestazure.azure_cloud.AZURE_CHINA_CLOUD")
             warnings.warn(err_msg, DeprecationWarning)
-            cloud_env = AZURE_CHINA_CLOUD
+            self.cloud_environment = AZURE_CHINA_CLOUD
         else:
-            cloud_env = AZURE_PUBLIC_CLOUD
-        cloud_env = kwargs.get('cloud_environment', cloud_env)
+            self.cloud_environment = AZURE_PUBLIC_CLOUD
+        self.cloud_environment = kwargs.get('cloud_environment', self.cloud_environment)
 
-        auth_endpoint = cloud_env.endpoints.active_directory
-        resource = cloud_env.endpoints.management
+        auth_endpoint = self.cloud_environment.endpoints.active_directory
+        resource = self.cloud_environment.endpoints.management
 
         tenant = kwargs.get('tenant', self._tenant)
         self.auth_uri = kwargs.get('auth_uri', _https(
