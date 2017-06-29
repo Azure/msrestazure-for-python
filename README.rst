@@ -20,6 +20,74 @@ To install:
 Release History
 ---------------
 
+2017-06-29 Version 0.4.11
++++++++++++++++++++++++++
+
+**Features**
+
+- Add cloud definitions for public Azure, German Azure, China Azure and Azure Gov
+- Add get_cloud_from_metadata_endpoint to automatically create a Cloud object from an ARM endpoint
+- Add `cloud_environment` to all Credentials objects (except AdalAuthentication)
+
+**Note**
+
+- This deprecates "china=True", to be replaced by "cloud_environment=AZURE_CHINA_CLOUD"
+
+Example:
+
+.. code:: python
+
+  from msrestazure.azure_cloud import AZURE_CHINA_CLOUD
+  from msrestazure.azure_active_directory import UserPassCredentials
+
+  credentials = UserPassCredentials(
+      login,
+      password,
+      cloud_environment=AZURE_CHINA_CLOUD
+  )
+
+`base_url` of SDK client can be pointed to "cloud_environment.endpoints.resource_manager" for basic scenario:
+
+Example:
+
+.. code:: python
+
+  from msrestazure.azure_cloud import AZURE_CHINA_CLOUD
+  from msrestazure.azure_active_directory import UserPassCredentials
+  from azure.mgmt.resource import ResourceManagementClient
+
+  credentials = UserPassCredentials(
+      login,
+      password,
+      cloud_environment=AZURE_CHINA_CLOUD
+  )
+  client = ResourceManagementClient(
+      credentials,
+      subscription_id,
+      base_url=AZURE_CHINA_CLOUD.endpoints.resource_manager
+  )
+
+Azure Stack connection can be done:
+
+.. code:: python
+
+  from msrestazure.azure_cloud import get_cloud_from_metadata_endpoint
+  from msrestazure.azure_active_directory import UserPassCredentials
+  from azure.mgmt.resource import ResourceManagementClient
+
+  mystack_cloud = get_cloud_from_metadata_endpoint("https://myazurestack-arm-endpoint.com")
+  credentials = UserPassCredentials(
+      login,
+      password,
+      cloud_environment=mystack_cloud
+  )
+  client = ResourceManagementClient(
+      credentials,
+      subscription_id,
+      base_url=mystack_cloud.endpoints.resource_manager
+  )
+
+
 2017-06-27 Version 0.4.10
 +++++++++++++++++++++++++
 
