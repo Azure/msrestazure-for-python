@@ -202,7 +202,6 @@ def _populate_from_metadata_endpoint(cloud, arm_endpoint):
     try:
         import requests
         metadata_endpoint = arm_endpoint + METADATA_ENDPOINT_SUFFIX
-        print(metadata_endpoint)
         response = requests.get(metadata_endpoint)
         if response.status_code == 200:
             metadata = response.json()
