@@ -27,6 +27,7 @@
 import ast
 import re
 import time
+import warnings
 try:
     from urlparse import urlparse, parse_qs
 except ImportError:
@@ -46,6 +47,8 @@ import requests_oauthlib as oauth
 from msrest.authentication import OAuthTokenAuthentication, Authentication
 from msrest.exceptions import TokenExpiredError as Expired
 from msrest.exceptions import AuthenticationError, raise_with_traceback
+
+from msrestazure.azure_cloud import AZURE_CHINA_CLOUD, AZURE_PUBLIC_CLOUD
 
 
 def _build_url(uri, paths, scheme):
@@ -99,13 +102,9 @@ class AADMixin(OAuthTokenAuthentication):
     - Token caching and retrieval
     - Default AAD configuration
     """
-    _auth_endpoint = "//login.microsoftonline.com"
-    _china_auth_endpoint = "//login.chinacloudapi.cn"
     _token_uri = "/oauth2/token"
     _auth_uri = "/oauth2/authorize"
     _tenant = "common"
-    _resource = 'https://management.core.windows.net/'
-    _china_resource = "https://management.core.chinacloudapi.cn/"
     _keyring = "AzureAAD"
     _case = re.compile('([a-z0-9])([A-Z])')
 
@@ -113,6 +112,7 @@ class AADMixin(OAuthTokenAuthentication):
         """Configure authentication endpoint.
 
         Optional kwargs may include:
+            - cloud_environment (msrestazure.azure_cloud.Cloud): A targeted cloud environment
             - china (bool): Configure auth for China-based service,
               default is 'False'.
             - tenant (str): Alternative tenant, default is 'common'.
@@ -126,11 +126,17 @@ class AADMixin(OAuthTokenAuthentication):
               hostname to the URL of the proxy.
         """
         if kwargs.get('china'):
-            auth_endpoint = self._china_auth_endpoint
-            resource = self._china_resource
+            err_msg = ("china parameter is deprecated, "
+                       "please use "
+                       "cloud_environment=msrestazure.azure_cloud.AZURE_CHINA_CLOUD")
+            warnings.warn(err_msg, DeprecationWarning)
+            cloud_env = AZURE_CHINA_CLOUD
         else:
-            auth_endpoint = self._auth_endpoint
-            resource = self._resource
+            cloud_env = AZURE_PUBLIC_CLOUD
+        cloud_env = kwargs.get('cloud_environment', cloud_env)
+
+        auth_endpoint = cloud_env.endpoints.active_directory
+        resource = cloud_env.endpoints.management
 
         tenant = kwargs.get('tenant', self._tenant)
         self.auth_uri = kwargs.get('auth_uri', _https(
@@ -143,7 +149,7 @@ class AADMixin(OAuthTokenAuthentication):
         self.proxies = kwargs.get('proxies')
         self.state = oauth.oauth2_session.generate_token()
         self.store_key = "{}_{}".format(
-            self._auth_endpoint.strip('/'), self.store_key)
+            auth_endpoint.strip('/'), self.store_key)
 
     def _check_state(self, response):
         """Validate state returned by AAD server.
@@ -256,6 +262,7 @@ class AADTokenCredentials(AADMixin):
     e.g. Python ADAL lib.
 
     Optional kwargs may include:
+    - cloud_environment (msrestazure.azure_cloud.Cloud): A targeted cloud environment
     - china (bool): Configure auth for China-based service,
       default is 'False'.
     - tenant (str): Alternative tenant, default is 'common'.
@@ -302,6 +309,7 @@ class UserPassCredentials(AADRefreshMixin, AADMixin):
     that 2-factor auth be disabled.
 
     Optional kwargs may include:
+    - cloud_environment (msrestazure.azure_cloud.Cloud): A targeted cloud environment
     - china (bool): Configure auth for China-based service,
       default is 'False'.
     - tenant (str): Alternative tenant, default is 'common'.
@@ -383,6 +391,7 @@ class ServicePrincipalCredentials(AADRefreshMixin, AADMixin):
     Authenticates via a Client ID and Secret.
 
     Optional kwargs may include:
+    - cloud_environment (msrestazure.azure_cloud.Cloud): A targeted cloud environment
     - china (bool): Configure auth for China-based service,
       default is 'False'.
     - tenant (str): Alternative tenant, default is 'common'.
@@ -449,6 +458,7 @@ class InteractiveCredentials(AADMixin):
     Requires that an AAD Client be configured with a redirect URL.
 
     Optional kwargs may include:
+    - cloud_environment (msrestazure.azure_cloud.Cloud): A targeted cloud environment
     - china (bool): Configure auth for China-based service,
       default is 'False'.
     - tenant (str): Alternative tenant, default is 'common'.
