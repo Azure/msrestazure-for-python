@@ -334,8 +334,6 @@ class AzureOperationPoller(object):
         of the operation.
     :param int timeout: Time in seconds to wait between status calls,
         default is 30.
-    :param callable func: Callback function that takes at least one
-        argument, a completed LongRunningOperation (optional).
     """
 
     def __init__(self, send_cmd, output_cmd, update_cmd, timeout=30):
