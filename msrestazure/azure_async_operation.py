@@ -39,8 +39,28 @@ from .azure_operation import (
     handle_exceptions
 )
 
+# Hack, I don't need a class for a coroutine
+# Do that until Autorest can generate something else
 
-class AzureOperationPoller(object):
+def AzureOperationPoller(send_cmd, output_cmd, update_cmd, timeout=30):
+    """Do a long running operation initial call and return a poller coroutine.
+
+    :param callable send_cmd: The API request to initiate the operation.
+    :param callable update_cmd: The API reuqest to check the status of
+        the operation.
+    :param callable output_cmd: The function to deserialize the resource
+        of the operation.
+    :param int timeout: Time in seconds to wait between status calls,
+        default is 30.
+    :return: A tuple (current resource, poller coroutine)
+    :rtype: tuple
+    """
+    # Might raise
+    poller = _AzureOperationPoller(send_cmd, output_cmd, update_cmd, timeout)
+    return (poller._operation.resource, poller.get_coroutine())
+
+
+class _AzureOperationPoller(object):
     """Initiates long running operation and polls status in separate
     thread.
 
