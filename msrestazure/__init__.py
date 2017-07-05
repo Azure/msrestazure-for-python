@@ -28,6 +28,9 @@
 from .azure_configuration import AzureConfiguration
 from .version import msrestazure_version
 
-__all__ = ["AzureConfiguration"]
+# Turn this to true at import level to get async AzureOperationPoller
+ASYNC_PROTOTYPE = False
+
+__all__ = ["AzureConfiguration", "ASYNC_PROTOTYPE"]
 
 __version__ = msrestazure_version
