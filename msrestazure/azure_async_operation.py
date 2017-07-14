@@ -39,28 +39,8 @@ from .azure_operation import (
     handle_exceptions
 )
 
-# Hack, I don't need a class for a coroutine
-# Do that until Autorest can generate something else
 
-def AzureOperationPoller(send_cmd, output_cmd, update_cmd, timeout=30):
-    """Do a long running operation initial call and return a poller coroutine.
-
-    :param callable send_cmd: The API request to initiate the operation.
-    :param callable update_cmd: The API reuqest to check the status of
-        the operation.
-    :param callable output_cmd: The function to deserialize the resource
-        of the operation.
-    :param int timeout: Time in seconds to wait between status calls,
-        default is 30.
-    :return: A tuple (current resource, poller coroutine)
-    :rtype: tuple
-    """
-    # Might raise
-    poller = _AzureOperationPoller(send_cmd, output_cmd, update_cmd, timeout)
-    return (poller._operation.resource, poller.get_coroutine())
-
-
-class _AzureOperationPoller(object):
+class AzureOperationPoller(asyncio.Future):
     """Initiates long running operation and polls status in separate
     thread.
 
@@ -73,7 +53,8 @@ class _AzureOperationPoller(object):
         default is 30.
     """
 
-    def __init__(self, send_cmd, output_cmd, update_cmd, timeout=30):
+    def __init__(self, send_cmd, output_cmd, update_cmd, timeout=30, *, loop=None):
+        super(AzureOperationPoller, self).__init__(loop=loop)
         self._output_cmd = output_cmd
         self._update_cmd = update_cmd
         self._timeout = timeout
@@ -84,16 +65,21 @@ class _AzureOperationPoller(object):
             self._operation.set_initial_status(self._response)
         except Exception:
             handle_exceptions(self._operation, self._response)
+        asyncio.ensure_future(self._get_coroutine())
 
     @asyncio.coroutine
-    def get_coroutine(self):
+    def _get_coroutine(self):
         try:
             if finished(self.status()):
-                return self._operation.resource
+                self.set_result(self._operation.resource)
             yield from self._poll(self._update_cmd)
         except Exception:
-            handle_exceptions(self._operation, self._response)
-        return self._operation.resource
+            try:
+                handle_exceptions(self._operation, self._response)
+            except Exception as err:
+                self.set_exception(err)
+        else:
+            self.set_result(self._operation.resource)
 
     @asyncio.coroutine
     def _delay(self):
@@ -171,5 +157,13 @@ class _AzureOperationPoller(object):
 
         :returns: The current status string
         :rtype: str
+        """
+        return self._operation.status
+
+    def resource(self):
+        """Returns the last resource or None if no result is expected.
+
+        :returns: The last resource (subcalss of msrest.serialization.Model) or None
+        :rtype: msrest.serialization.Model or None
         """
         return self._operation.status

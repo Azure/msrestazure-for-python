@@ -153,7 +153,7 @@ class TestLongRunningOperation(unittest.TestCase):
             poll = AzureOperationPoller(response,
                 TestLongRunningOperation.mock_outputs,
                 TestLongRunningOperation.mock_update_with_ref, 0)
-            self.loop.run_until_complete(poll[1])
+            self.loop.run_until_complete(poll)
 
         # Test with no polling necessary
         response_body = {
@@ -171,7 +171,7 @@ class TestLongRunningOperation(unittest.TestCase):
             no_update_allowed,
             0
         )
-        result = self.loop.run_until_complete(poll[1])
+        result = self.loop.run_until_complete(poll)
         self.assertEqual(result.name, TEST_NAME)
 
         # Test polling from azure-asyncoperation header
@@ -184,7 +184,7 @@ class TestLongRunningOperation(unittest.TestCase):
         poll = AzureOperationPoller(response,
             TestLongRunningOperation.mock_outputs,
             local_mock_update, 0)
-        result = self.loop.run_until_complete(poll[1])
+        result = self.loop.run_until_complete(poll)
         self.assertEqual(result.name, TEST_NAME)
         self.assertFalse(hasattr(ref_result["response"], 'randomFieldFromPollAsyncOpHeader'))
 
@@ -198,7 +198,7 @@ class TestLongRunningOperation(unittest.TestCase):
         poll = AzureOperationPoller(response,
             TestLongRunningOperation.mock_outputs,
             local_mock_update, 0)
-        result = self.loop.run_until_complete(poll[1])
+        result = self.loop.run_until_complete(poll)
         self.assertEqual(result.name, TEST_NAME)
         self.assertIsNone(ref_result["response"].randomFieldFromPollLocationHeader)
 
@@ -213,7 +213,7 @@ class TestLongRunningOperation(unittest.TestCase):
         poll = AzureOperationPoller(response,
             TestLongRunningOperation.mock_outputs,
             local_mock_update, 0)
-        result = self.loop.run_until_complete(poll[1])
+        result = self.loop.run_until_complete(poll)
         self.assertEqual(result.name, TEST_NAME)
         self.assertIsNone(ref_result["response"].randomFieldFromPollLocationHeader)
 
@@ -225,7 +225,7 @@ class TestLongRunningOperation(unittest.TestCase):
             poll = AzureOperationPoller(response,
                 TestLongRunningOperation.mock_outputs,
                 TestLongRunningOperation.mock_update_with_ref, 0)
-            self.loop.run_until_complete(poll[1])
+            self.loop.run_until_complete(poll)
 
         # Test fail to poll from location header
         response = TestLongRunningOperation.mock_send(
@@ -235,7 +235,7 @@ class TestLongRunningOperation(unittest.TestCase):
             poll = AzureOperationPoller(response,
                 TestLongRunningOperation.mock_outputs,
                 TestLongRunningOperation.mock_update_with_ref, 0)
-            self.loop.run_until_complete(poll[1])
+            self.loop.run_until_complete(poll)
 
     def test_long_running_patch(self):
 
@@ -250,7 +250,7 @@ class TestLongRunningOperation(unittest.TestCase):
         poll = AzureOperationPoller(response,
             TestLongRunningOperation.mock_outputs,
             local_mock_update, 0)
-        result = self.loop.run_until_complete(poll[1])
+        result = self.loop.run_until_complete(poll)
         self.assertEqual(result.name, TEST_NAME)
         self.assertIsNone(ref_result["response"].randomFieldFromPollLocationHeader)
 
@@ -265,7 +265,7 @@ class TestLongRunningOperation(unittest.TestCase):
         poll = AzureOperationPoller(response,
             TestLongRunningOperation.mock_outputs,
             local_mock_update, 0)
-        result = self.loop.run_until_complete(poll[1])
+        result = self.loop.run_until_complete(poll)
         self.assertEqual(result.name, TEST_NAME)
         self.assertFalse(hasattr(ref_result["response"], 'randomFieldFromPollAsyncOpHeader'))
 
@@ -280,7 +280,7 @@ class TestLongRunningOperation(unittest.TestCase):
         poll = AzureOperationPoller(response,
             TestLongRunningOperation.mock_outputs,
             local_mock_update, 0)
-        result = self.loop.run_until_complete(poll[1])
+        result = self.loop.run_until_complete(poll)
         self.assertEqual(result.name, TEST_NAME)
         self.assertIsNone(ref_result["response"].randomFieldFromPollLocationHeader)
 
@@ -295,7 +295,7 @@ class TestLongRunningOperation(unittest.TestCase):
         poll = AzureOperationPoller(response,
             TestLongRunningOperation.mock_outputs,
             local_mock_update, 0)
-        result = self.loop.run_until_complete(poll[1])
+        result = self.loop.run_until_complete(poll)
         self.assertEqual(result.name, TEST_NAME)
         self.assertFalse(hasattr(ref_result["response"], 'randomFieldFromPollAsyncOpHeader'))
 
@@ -307,7 +307,7 @@ class TestLongRunningOperation(unittest.TestCase):
             poll = AzureOperationPoller(response,
                 TestLongRunningOperation.mock_outputs,
                 TestLongRunningOperation.mock_update_with_ref, 0)
-            self.loop.run_until_complete(poll[1])
+            self.loop.run_until_complete(poll)
 
         # Test fail to poll from location header
         response = TestLongRunningOperation.mock_send(
@@ -317,7 +317,7 @@ class TestLongRunningOperation(unittest.TestCase):
             poll = AzureOperationPoller(response,
                 TestLongRunningOperation.mock_outputs,
                 TestLongRunningOperation.mock_update_with_ref, 0)
-            self.loop.run_until_complete(poll[1])
+            self.loop.run_until_complete(poll)
 
     def test_long_running_delete(self):
         # Test polling from azure-asyncoperation header
@@ -330,7 +330,7 @@ class TestLongRunningOperation(unittest.TestCase):
         poll = AzureOperationPoller(response,
             TestLongRunningOperation.mock_outputs,
             local_mock_update, 0)
-        result = self.loop.run_until_complete(poll[1])
+        result = self.loop.run_until_complete(poll)
         self.assertIsNone(result)
         self.assertIsNone(ref_result["response"].randomFieldFromPollAsyncOpHeader)
 
@@ -345,7 +345,7 @@ class TestLongRunningOperation(unittest.TestCase):
             poll = AzureOperationPoller(response,
                 TestLongRunningOperation.mock_outputs,
                 TestLongRunningOperation.mock_update_with_ref, 0)
-            self.loop.run_until_complete(poll[1])
+            self.loop.run_until_complete(poll)
 
         # Test polling from azure-asyncoperation header
         response = TestLongRunningOperation.mock_send(
@@ -358,7 +358,7 @@ class TestLongRunningOperation(unittest.TestCase):
         poll = AzureOperationPoller(response,
             TestLongRunningOperation.mock_outputs,
             local_mock_update, 0)
-        result = self.loop.run_until_complete(poll[1])
+        result = self.loop.run_until_complete(poll)
         #self.assertIsNone(result)
         self.assertIsNone(ref_result["response"].randomFieldFromPollAsyncOpHeader)
 
@@ -373,7 +373,7 @@ class TestLongRunningOperation(unittest.TestCase):
         poll = AzureOperationPoller(response,
             TestLongRunningOperation.mock_outputs,
             local_mock_update, 0)
-        result = self.loop.run_until_complete(poll[1])
+        result = self.loop.run_until_complete(poll)
         self.assertEqual(result.name, TEST_NAME)
         self.assertIsNone(ref_result["response"].randomFieldFromPollLocationHeader)
 
@@ -385,7 +385,7 @@ class TestLongRunningOperation(unittest.TestCase):
             poll = AzureOperationPoller(response,
                 TestLongRunningOperation.mock_outputs,
                 TestLongRunningOperation.mock_update_with_ref, 0)
-            self.loop.run_until_complete(poll[1])
+            self.loop.run_until_complete(poll)
 
         # Test fail to poll from location header
         response = TestLongRunningOperation.mock_send(
@@ -395,7 +395,7 @@ class TestLongRunningOperation(unittest.TestCase):
             poll = AzureOperationPoller(response,
                 TestLongRunningOperation.mock_outputs,
                 TestLongRunningOperation.mock_update_with_ref, 0)
-            self.loop.run_until_complete(poll[1])
+            self.loop.run_until_complete(poll)
 
     def test_long_running_negative(self):
         global LOCATION_BODY
@@ -410,7 +410,7 @@ class TestLongRunningOperation(unittest.TestCase):
             TestLongRunningOperation.mock_outputs,
             TestLongRunningOperation.mock_update_with_ref, 0)
         with self.assertRaises(DeserializationError):
-            self.loop.run_until_complete(poll[1])
+            self.loop.run_until_complete(poll)
 
         LOCATION_BODY = '{\'"}'
         response = TestLongRunningOperation.mock_send(
@@ -420,7 +420,7 @@ class TestLongRunningOperation(unittest.TestCase):
             TestLongRunningOperation.mock_outputs,
             TestLongRunningOperation.mock_update_with_ref, 0)
         with self.assertRaises(DeserializationError):
-            self.loop.run_until_complete(poll[1])
+            self.loop.run_until_complete(poll)
 
         LOCATION_BODY = '{'
         POLLING_STATUS = 203
@@ -431,7 +431,7 @@ class TestLongRunningOperation(unittest.TestCase):
             TestLongRunningOperation.mock_outputs,
             TestLongRunningOperation.mock_update_with_ref, 0)
         with self.assertRaises(CloudError): # TODO: Node.js raises on deserialization
-            self.loop.run_until_complete(poll[1])
+            self.loop.run_until_complete(poll)
 
         LOCATION_BODY = json.dumps({ 'name': TEST_NAME })
         POLLING_STATUS = 200
