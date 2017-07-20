@@ -31,7 +31,8 @@ from pprint import pformat
 _LOGGER = logging.getLogger(__name__)
 
 
-METADATA_ENDPOINT_SUFFIX = '/metadata/endpoints?api-version=1.0'
+# The exact API version doesn't matter too much right now. It just has to be YYYY-MM-DD format.
+METADATA_ENDPOINT_SUFFIX = '/metadata/endpoints?api-version=2015-01-01'
 
 class CloudEndpointNotSetException(Exception):
     pass
@@ -195,11 +196,12 @@ AZURE_GERMAN_CLOUD = Cloud(
 
 
 def _populate_from_metadata_endpoint(cloud, arm_endpoint):
-    endpoints_in_metadata = ['gallery', 'active_directory_graph_resource_id',
+    endpoints_in_metadata = ['active_directory_graph_resource_id',
                              'active_directory_resource_id', 'active_directory']
     if not arm_endpoint or all([cloud.endpoints.has_endpoint_set(n) for n in endpoints_in_metadata]):
         return
     try:
+        error_msg_fmt = "Unable to get endpoints from the cloud.\n{}"
         import requests
         metadata_endpoint = arm_endpoint + METADATA_ENDPOINT_SUFFIX
         response = requests.get(metadata_endpoint)
@@ -214,11 +216,14 @@ def _populate_from_metadata_endpoint(cloud, arm_endpoint):
             if not cloud.endpoints.has_endpoint_set('active_directory_resource_id'):
                 setattr(cloud.endpoints, 'active_directory_resource_id', metadata['authentication']['audiences'][0])
         else:
-            raise MetadataEndpointError('Server returned status code {} for {}'.format(response.status_code, metadata_endpoint))
+            msg = 'Server returned status code {} for {}'.format(response.status_code, metadata_endpoint)
+            raise MetadataEndpointError(error_msg_fmt.format(msg))
     except (requests.exceptions.ConnectionError, requests.exceptions.HTTPError) as err:
-        raise MetadataEndpointError('Please ensure you have network connection. Error detail: {}'.format(str(err)))
+        msg = 'Please ensure you have network connection. Error detail: {}'.format(str(err))
+        raise MetadataEndpointError(error_msg_fmt.format(msg))
     except ValueError as err:
-        raise MetadataEndpointError('Response body does not contain valid json. Error detail: {}'.format(str(err)))
+        msg = 'Response body does not contain valid json. Error detail: {}'.format(str(err))
+        raise MetadataEndpointError(error_msg_fmt.format(msg))
 
 def get_cloud_from_metadata_endpoint(arm_endpoint, name=None):
     """Get a Cloud object from an ARM endpoint.
