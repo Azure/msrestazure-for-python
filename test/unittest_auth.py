@@ -214,6 +214,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         creds.id = 123
         creds.secret = 'secret'
         creds.resource = 'resource'
+        creds.timeout = 12
         mock_proxies = {
             'http': 'http://myproxy:8080',
             'https': 'https://myproxy:8080',
@@ -225,7 +226,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         session.fetch_token.assert_called_with(
             "token_uri", client_id=123, client_secret='secret',
             resource='resource', response_type="client_credentials",
-            verify=True, proxies=mock_proxies)
+            verify=True, timeout=12, proxies=mock_proxies)
 
         session.fetch_token.side_effect = oauthlib.oauth2.OAuth2Error
 
@@ -249,6 +250,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
                 resource='https://management.core.windows.net/',
                 response_type="client_credentials",
                 verify=False,
+                timeout=None,
                 proxies=proxies,
             )
 
@@ -262,7 +264,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
                 "https://login.chinacloudapi.cn/private/oauth2/token",
                 client_id="client_id", client_secret='secret',
                 resource='https://management.core.chinacloudapi.cn/',
-                response_type="client_credentials", verify=False, proxies=None)
+                response_type="client_credentials", verify=False, proxies=None, timeout=None)
 
     def test_user_pass_credentials(self):
 
@@ -281,6 +283,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         creds.password = 'pass'
         creds.secret = 'secret'
         creds.resource = 'resource'
+        creds.timeout = 12
         creds.id = "id"
         mock_proxies = {
             'http': 'http://myproxy:8080',
@@ -293,7 +296,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         session.fetch_token.assert_called_with(
             "token_uri", client_id="id", username='user',
             client_secret="secret", password='pass', resource='resource', verify=True,
-            proxies=mock_proxies
+            timeout=12, proxies=mock_proxies
         )
 
         session.fetch_token.side_effect = oauthlib.oauth2.OAuth2Error
@@ -315,7 +318,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
                 "https://login.microsoftonline.com/private/oauth2/token",
                 client_id='04b07795-8ddb-461a-bbee-02f9e1bf7b46', username='my_username',
                 password='my_password', resource='resource', verify=False,
-                proxies=proxies
+                proxies=proxies, timeout=None
             )
 
         with mock.patch.object(
@@ -328,7 +331,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
                 "https://login.chinacloudapi.cn/private/oauth2/token",
                 client_id="client_id", username='my_username',
                 password='my_password', resource='https://management.core.chinacloudapi.cn/',
-                verify=False, proxies=None)
+                verify=False, proxies=None, timeout=None)
 
     def test_adal_authentication(self):
         def success_auth():

@@ -122,6 +122,7 @@ class AADMixin(OAuthTokenAuthentication):
               is 'https://management.core.windows.net/'.
             - verify (bool): Verify secure connection, default is 'True'.
             - keyring (str): Name of local token cache, default is 'AzureAAD'.
+            - timeout (int): Timeout of the request in seconds.
             - proxies (dict): Dictionary mapping protocol or protocol and 
               hostname to the URL of the proxy.
         """
@@ -147,6 +148,7 @@ class AADMixin(OAuthTokenAuthentication):
         self.cred_store = kwargs.get('keyring', self._keyring)
         self.resource = kwargs.get('resource', resource)
         self.proxies = kwargs.get('proxies')
+        self.timeout = kwargs.get('timeout')
         self.state = oauth.oauth2_session.generate_token()
         self.store_key = "{}_{}".format(
             auth_endpoint.strip('/'), self.store_key)
@@ -319,6 +321,7 @@ class UserPassCredentials(AADRefreshMixin, AADMixin):
       is 'https://management.core.windows.net/'.
     - verify (bool): Verify secure connection, default is 'True'.
     - keyring (str): Name of local token cache, default is 'AzureAAD'.
+    - timeout (int): Timeout of the request in seconds.
     - cached (bool): If true, will not attempt to collect a token,
       which can then be populated later from a cached token.
     - proxies (dict): Dictionary mapping protocol or protocol and
@@ -379,6 +382,7 @@ class UserPassCredentials(AADRefreshMixin, AADMixin):
                                             resource=self.resource,
                                             verify=self.verify,
                                             proxies=self.proxies,
+                                            timeout=self.timeout,
                                             **optional)
             except (RequestException, OAuth2Error, InvalidGrantError) as err:
                 raise_with_traceback(AuthenticationError, "", err)
@@ -401,6 +405,7 @@ class ServicePrincipalCredentials(AADRefreshMixin, AADMixin):
       is 'https://management.core.windows.net/'.
     - verify (bool): Verify secure connection, default is 'True'.
     - keyring (str): Name of local token cache, default is 'AzureAAD'.
+    - timeout (int): Timeout of the request in seconds.
     - cached (bool): If true, will not attempt to collect a token,
       which can then be populated later from a cached token.
     - proxies (dict): Dictionary mapping protocol or protocol and
@@ -445,8 +450,9 @@ class ServicePrincipalCredentials(AADRefreshMixin, AADMixin):
                                             resource=self.resource,
                                             client_secret=self.secret,
                                             response_type="client_credentials",
-                                           verify=self.verify,
-                                           proxies=self.proxies)
+                                            verify=self.verify,
+                                            timeout=self.timeout,
+                                            proxies=self.proxies)
             except (RequestException, OAuth2Error, InvalidGrantError) as err:
                 raise_with_traceback(AuthenticationError, "", err)
             else:
