@@ -3,4 +3,5 @@ __pycache__
 venv*
 msrestazure.egg-info
 .tox
-test/.coverage
+tests/.coverage
+autorest
