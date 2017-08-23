@@ -452,6 +452,10 @@ class ServicePrincipalCredentials(AADRefreshMixin, AADMixin):
             else:
                 self.token = token
 
+# For backward compatibility of import, but I doubt someone uses that...
+class InteractiveCredentials(object):
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError("InteractiveCredentials was not functionning and was removed. Please use ADAL and device code instead.")
 
 class AdalAuthentication(Authentication):  # pylint: disable=too-few-public-methods
     """A wrapper to use ADAL for Python easily to authenticate on Azure.
