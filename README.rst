@@ -20,6 +20,24 @@ To install:
 Release History
 ---------------
 
+2017-08-23 Version 0.4.12
++++++++++++++++++++++++++
+
+**Features**
+
+- add "timeout" to ServicePrincipalCredentials and UserPasswordCredentials
+- Threads created by AzureOperationPoller have now a name prefixed by "AzureOperationPoller" to help identify them
+
+**Bugfixes**
+
+- Do not fail if keyring is badly installed
+- Update Azure Gov login endpoint
+- Update metadata ARM endpoint parser
+
+**Breaking changes**
+
+- Remove InteractiveCredentials. This class was deprecated and unusable. Use ADAL device code instead.
+
 2017-06-29 Version 0.4.11
 +++++++++++++++++++++++++
 
