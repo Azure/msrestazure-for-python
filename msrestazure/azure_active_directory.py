@@ -25,6 +25,7 @@
 # --------------------------------------------------------------------------
 
 import ast
+import logging
 import re
 import time
 import warnings
@@ -50,6 +51,7 @@ from msrest.exceptions import AuthenticationError, raise_with_traceback
 
 from msrestazure.azure_cloud import AZURE_CHINA_CLOUD, AZURE_PUBLIC_CLOUD
 
+_LOGGER = logging.getLogger(__name__)
 
 def _build_url(uri, paths, scheme):
     """Combine URL parts.
@@ -194,7 +196,10 @@ class AADMixin(OAuthTokenAuthentication):
         :rtype: None
         """
         self.token = token
-        keyring.set_password(self.cred_store, self.store_key, str(token))
+        try:
+            keyring.set_password(self.cred_store, self.store_key, str(token))
+        except Exception as err:
+            _LOGGER.warning("Keyring cache token has failed: %s", str(err))
 
     def _retrieve_stored_token(self):
         """Retrieve stored token for new session.

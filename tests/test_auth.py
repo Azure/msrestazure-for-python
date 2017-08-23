@@ -130,6 +130,18 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             "store_name", "client_id",
             str({'token_type':'1', 'access_token':'2'}))
 
+    @unittest.skipIf(sys.version_info < (3,4), "assertLogs not supported before 3.4")
+    @mock.patch('msrestazure.azure_active_directory.keyring.set_password')
+    def test_store_token_boom(self, mock_keyring):
+
+        mock_keyring.side_effect = Exception('Boom!')
+
+        mix = AADMixin(None, None)
+        mix.cred_store = "store_name"
+        mix.store_key = "client_id"
+        with self.assertLogs('msrestazure.azure_active_directory', level="WARNING"):
+            mix._default_token_cache({'token_type':'1', 'access_token':'2'})
+
     @mock.patch('msrestazure.azure_active_directory.keyring')
     def test_clear_token(self, mock_keyring):
 
