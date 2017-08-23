@@ -40,7 +40,6 @@ from msrestazure import AzureConfiguration
 from msrestazure import azure_active_directory
 from msrestazure.azure_active_directory import (
     AADMixin,
-    InteractiveCredentials,
     ServicePrincipalCredentials,
     UserPassCredentials,
     AdalAuthentication
@@ -49,11 +48,11 @@ from msrest.exceptions import TokenExpiredError, AuthenticationError
 from requests import ConnectionError
 
 
-class TestInteractiveCredentials(unittest.TestCase):
+class TestServicePrincipalCredentials(unittest.TestCase):
 
     def setUp(self):
         self.cfg = AzureConfiguration("https://my_service.com")
-        return super(TestInteractiveCredentials, self).setUp()
+        return super(TestServicePrincipalCredentials, self).setUp()
 
     def test_http(self):
 
@@ -167,82 +166,21 @@ class TestInteractiveCredentials(unittest.TestCase):
     @mock.patch.object(AADMixin, '_retrieve_stored_token')
     def test_credentials_retrieve_session(self, mock_retrieve):
 
-        creds = InteractiveCredentials.retrieve_session("client_id", "redirect")
+        creds = ServicePrincipalCredentials.retrieve_session("client_id")
         mock_retrieve.asset_called_with(mock.ANY)
 
         mock_retrieve.side_effect = ValueError("No stored token")
         with self.assertRaises(ValueError):
-            InteractiveCredentials.retrieve_session("client_id", "redirect")
+            ServicePrincipalCredentials.retrieve_session("client_id")
 
         mock_retrieve.side_effect = TokenExpiredError("Token expired")
         with self.assertRaises(TokenExpiredError):
-            InteractiveCredentials.retrieve_session("client_id", "redirect")
-
-    def test_credentials_auth_url(self):
-
-        creds = mock.create_autospec(InteractiveCredentials)
-        session = mock.create_autospec(OAuth2Session)
-        session.__enter__.return_value = session
-        creds._setup_session.return_value = session
-        creds.auth_uri = "auth_uri"
-        creds.resource = "auth_resource"
-        session.authorization_url.return_value = ("a", "b")
-
-        url, state = InteractiveCredentials.get_auth_url(creds)
-        self.assertEqual(url, "a")
-        self.assertEqual(state, "b")
-        session.authorization_url.assert_called_with(
-            "auth_uri", resource="auth_resource")
-
-        InteractiveCredentials.get_auth_url(creds, msa=True, test="extra_arg")
-        session.authorization_url.assert_called_with(
-            "auth_uri", resource="auth_resource",
-            domain_hint='live.com', test='extra_arg')
-
-    def test_credentials_get_token(self):
-
-        creds = mock.create_autospec(InteractiveCredentials)
-        session = mock.create_autospec(OAuth2Session)
-        session.__enter__.return_value = session
-        creds._setup_session.return_value = session
-
-        session.fetch_token.return_value = {
-            'expires_at':'1',
-            'expires_in':'2',
-            'refresh_token':"test"}
-
-        creds.redirect = "//my_service.com"
-        creds.token_uri = "token_uri"
-        creds._check_state.return_value = True
-        creds.verify = True
-        mock_proxies = {
-            'http': 'http://myproxy:8080',
-            'https': 'https://myproxy:8080',
-        }
-        creds.proxies = mock_proxies
-
-        InteractiveCredentials.set_token(creds, "response")
-        self.assertEqual(creds.token, session.fetch_token.return_value)
-        session.fetch_token.assert_called_with(
-            "token_uri",
-            authorization_response="https://my_service.com/response",
-            verify=True,
-            proxies=mock_proxies,
-        )
-
-        creds._check_state.side_effect = ValueError("failed")
-        with self.assertRaises(ValueError):
-            InteractiveCredentials.set_token(creds, "response")
-
-        creds._check_state.side_effect = None
-        session.fetch_token.side_effect = oauthlib.oauth2.OAuth2Error
-        with self.assertRaises(AuthenticationError):
-            InteractiveCredentials.set_token(creds, "response")
+            ServicePrincipalCredentials.retrieve_session("client_id")
 
     @mock.patch('msrestazure.azure_active_directory.oauth')
     def test_credentials_signed_session(self, mock_requests):
 
-        creds = mock.create_autospec(InteractiveCredentials)
+        creds = mock.create_autospec(ServicePrincipalCredentials)
         creds._parse_token = lambda: AADMixin._parse_token(creds)
         creds.id = 'client_id'
         creds.token_uri = "token_uri"
