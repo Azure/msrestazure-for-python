@@ -27,6 +27,7 @@
 import re
 import threading
 import time
+import uuid
 try:
     from urlparse import urlparse
 except ImportError:
@@ -359,7 +360,9 @@ class AzureOperationPoller(object):
         if not finished(self.status()):
             self._done = threading.Event()
             self._thread = threading.Thread(
-                target=self._start, args=(update_cmd,))
+                target=self._start,
+                name="AzureOperationPoller({})".format(uuid.uuid4()),
+                args=(update_cmd,))
             self._thread.daemon = True
             self._thread.start()
 
