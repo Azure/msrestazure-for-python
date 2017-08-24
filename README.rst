@@ -20,6 +20,13 @@ To install:
 Release History
 ---------------
 
+2017-08-24 Version 0.4.13
++++++++++++++++++++++++++
+
+**Features**
+
+- "keyring" is now completely optional
+
 2017-08-23 Version 0.4.12
 +++++++++++++++++++++++++
 
