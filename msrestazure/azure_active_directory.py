@@ -34,7 +34,6 @@ try:
 except ImportError:
     from urllib.parse import urlparse, parse_qs
 
-import keyring
 import adal
 from oauthlib.oauth2 import BackendApplicationClient, LegacyApplicationClient
 from oauthlib.oauth2.rfc6749.errors import (
@@ -45,6 +44,12 @@ from oauthlib.oauth2.rfc6749.errors import (
 from requests import RequestException, ConnectionError
 import requests_oauthlib as oauth
 
+try:
+    import keyring
+except Exception as err:
+    keyring = False
+    KEYRING_EXCEPTION = err
+
 from msrest.authentication import OAuthTokenAuthentication, Authentication
 from msrest.exceptions import TokenExpiredError as Expired
 from msrest.exceptions import AuthenticationError, raise_with_traceback
@@ -52,6 +57,9 @@ from msrest.exceptions import AuthenticationError, raise_with_traceback
 from msrestazure.azure_cloud import AZURE_CHINA_CLOUD, AZURE_PUBLIC_CLOUD
 
 _LOGGER = logging.getLogger(__name__)
+
+if not keyring:
+    _LOGGER.warning("Cannot load keyring on your system: %s", KEYRING_EXCEPTION)
 
 def _build_url(uri, paths, scheme):
     """Combine URL parts.
@@ -196,10 +204,11 @@ class AADMixin(OAuthTokenAuthentication):
         :rtype: None
         """
         self.token = token
-        try:
-            keyring.set_password(self.cred_store, self.store_key, str(token))
-        except Exception as err:
-            _LOGGER.warning("Keyring cache token has failed: %s", str(err))
+        if keyring:
+            try:
+                keyring.set_password(self.cred_store, self.store_key, str(token))
+            except Exception as err:
+                _LOGGER.warning("Keyring cache token has failed: %s", str(err))
 
     def _retrieve_stored_token(self):
         """Retrieve stored token for new session.
