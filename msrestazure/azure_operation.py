@@ -368,7 +368,7 @@ class AzureOperationPoller(object):
 
     def _start(self, update_cmd):
         """Start the long running operation.
-        On completetion, runs any callbacks.
+        On completion, runs any callbacks.
 
         :param callable update_cmd: The API reuqest to check the status of
          the operation.
