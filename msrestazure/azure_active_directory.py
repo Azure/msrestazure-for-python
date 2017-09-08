@@ -42,6 +42,7 @@ from oauthlib.oauth2.rfc6749.errors import (
     OAuth2Error,
     TokenExpiredError)
 from requests import RequestException, ConnectionError
+import requests
 import requests_oauthlib as oauth
 
 try:
@@ -50,7 +51,7 @@ except Exception as err:
     keyring = False
     KEYRING_EXCEPTION = err
 
-from msrest.authentication import OAuthTokenAuthentication, Authentication
+from msrest.authentication import OAuthTokenAuthentication, Authentication, BasicTokenAuthentication
 from msrest.exceptions import TokenExpiredError as Expired
 from msrest.exceptions import AuthenticationError, raise_with_traceback
 
@@ -556,3 +557,63 @@ class AdalAuthentication(Authentication):  # pylint: disable=too-few-public-meth
         header = "{} {}".format(scheme, token)
         session.headers['Authorization'] = header
         return session
+
+
+def get_msi_token(resource, port=50342):
+    request_uri = 'http://localhost:{}/oauth2/token'.format(port)
+    payload = {
+        'resource': resource
+    }
+
+    # retry as the token endpoint might not be available yet, one example is you use CLI in a
+    # custom script extension of VMSS, which might get provisioned before the MSI extensioon
+    while True:
+        err = None
+        try:
+            result = requests.post(request_uri, data=payload, headers={'Metadata': 'true'})
+            _LOGGER.debug("MSI: Retrieving a token from %s, with payload %s", request_uri, payload)
+            if result.status_code != 200:
+                err = result.text
+        except Exception as ex:  # pylint: disable=broad-except
+            err = str(ex)
+
+        if err:
+            # we might need some error code checking to avoid silly waiting. The bottom line is users can
+            # always press ctrl+c to stop it
+            _LOGGER.warning("MSI: Failed to retrieve a token from '%s' with an error of '%s'. This could be caused "
+                            "by the MSI extension not yet fullly provisioned. Will retry in 60 seconds...",
+                            request_uri, err)
+            time.sleep(60)
+        else:
+            _LOGGER.debug('MSI: token retrieved')
+            break
+    token_entry = result.json()
+    return token_entry['token_type'], token_entry['access_token'], token_entry
+
+
+class MSIAuthentication(BasicTokenAuthentication):
+    """Credentials object for MSI authentication,.
+
+    Optional kwargs may include:
+    - cloud_environment (msrestazure.azure_cloud.Cloud): A targeted cloud environment
+    - resource (str): Alternative authentication resource, default
+      is 'https://management.core.windows.net/'.
+
+    :param int port: MSI local port.
+    """
+
+    def __init__(self, port=50342, **kwargs):
+        super(MSIAuthentication, self).__init__(None)
+
+        self.port = port
+
+        self.cloud_environment = kwargs.get('cloud_environment', AZURE_PUBLIC_CLOUD)
+        self.resource = kwargs.get('resource', self.cloud_environment.endpoints.management)
+
+    def set_token(self):
+        self.scheme, _, self.token = get_msi_token(self.resource, self.port)
+
+    def signed_session(self):
+        # Token cache is handled by the VM extension, call each time to avoid expiration
+        self.set_token()
+        return super(MSIAuthentication, self).signed_session()
