@@ -3,7 +3,6 @@ language: python
 cache: pip
 services:
   - docker
-env: # important!
 matrix:
   include:
     - python: 2.7
