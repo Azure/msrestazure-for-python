@@ -20,6 +20,19 @@ To install:
 Release History
 ---------------
 
+2017-09-11 Version 0.4.14
++++++++++++++++++++++++++
+
+**Features**
+
+- Add Managed Service Integrated (MSI) authentication
+
+**Bug fix**
+
+- Fix AdalError handling in some scenarios (#44)
+
+Thank you to Hexadite-Omer for his contribution
+
 2017-08-24 Version 0.4.13
 +++++++++++++++++++++++++
 
