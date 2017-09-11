@@ -545,8 +545,7 @@ class AdalAuthentication(Authentication):  # pylint: disable=too-few-public-meth
             raw_token = self._adal_method(*self._args, **self._kwargs)
         except adal.AdalError as err:
             # pylint: disable=no-member
-            if (hasattr(err, 'error_response') and ('error_description' in err.error_response)
-                    and ('AADSTS70008:' in err.error_response['error_description'])):
+            if 'AADSTS70008:' in ((getattr(err, 'error_response', None) or {}).get('error_description') or ''):
                 raise Expired("Credentials have expired due to inactivity.")
             else:
                 raise AuthenticationError(err)
