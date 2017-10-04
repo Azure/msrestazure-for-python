@@ -234,7 +234,6 @@ def is_valid_resource_id(rid, exception_type=None):
     """
     is_valid = False
     try:
-        print("resource_id", resource_id(**parse_resource_id(rid)).lower())
         is_valid = rid and resource_id(**parse_resource_id(rid)).lower() == rid.lower()
     except KeyError:
         pass
