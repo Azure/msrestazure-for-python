@@ -44,6 +44,14 @@ msrestazure.version module
     :undoc-members:
     :show-inheritance:
 
+msrestazure.tools module
+--------------------------
+
+.. automodule:: msrestazure.tools
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 
 Module contents
 ---------------
