@@ -35,7 +35,7 @@ except ImportError:
 from requests import Request, Response
 
 from msrest import Deserializer
-from msrest.exceptions import RequestException, DeserializationError
+from msrest.exceptions import DeserializationError
 from msrestazure.azure_exceptions import CloudError
 from msrestazure.azure_operation import (
     LongRunningOperation,
@@ -69,9 +69,10 @@ class TestLongRunningOperation(unittest.TestCase):
         response.request.url = RESOURCE_URL
         response.status_code = status
         response.headers = headers
+        response.headers.update({"content-type": "application/json; charset=utf8"})
         content = body if body else RESPONSE_BODY
-        response.content = json.dumps(content)
-        response.json = lambda: json.loads(response.content)
+        response.text = json.dumps(content)
+        response.json = lambda: json.loads(response.text)
         return lambda: response
 
     @staticmethod
@@ -80,17 +81,18 @@ class TestLongRunningOperation(unittest.TestCase):
         response.request = mock.create_autospec(Request)
         response.request.method = 'GET'
         response.headers = headers or {}
+        response.headers.update({"content-type": "application/json; charset=utf8"})
         
         if url == ASYNC_URL:
             response.request.url = url
             response.status_code = POLLING_STATUS
-            response.content = ASYNC_BODY
+            response.text = ASYNC_BODY
             response.randomFieldFromPollAsyncOpHeader = None
 
         elif url == LOCATION_URL:
             response.request.url = url
             response.status_code = POLLING_STATUS
-            response.content = LOCATION_BODY
+            response.text = LOCATION_BODY
             response.randomFieldFromPollLocationHeader = None
 
         elif url == ERROR:
@@ -99,11 +101,11 @@ class TestLongRunningOperation(unittest.TestCase):
         elif url == RESOURCE_URL:
             response.request.url = url
             response.status_code = POLLING_STATUS
-            response.content = RESOURCE_BODY
+            response.text = RESOURCE_BODY
 
         else:
             raise Exception('URL does not match')
-        response.json = lambda: json.loads(response.content)
+        response.json = lambda: json.loads(response.text)
         return response
 
     @staticmethod

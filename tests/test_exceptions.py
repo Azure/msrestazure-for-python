@@ -31,10 +31,9 @@ try:
 except ImportError:
     import mock
 
-from requests import Response
+from requests import Response, RequestException
 
 from msrest import Deserializer, Configuration
-from msrest.exceptions import RequestException
 from msrestazure.azure_exceptions import CloudErrorData, CloudError
 
 
@@ -120,9 +119,10 @@ class TestCloudException(unittest.TestCase):
 
 
     def test_cloud_error(self):
-        
+
         response = mock.create_autospec(Response)
         response.status_code = 400
+        response.headers = {"content-type": "application/json; charset=utf8"}
         response.reason = 'BadRequest'
 
         message = {
@@ -131,8 +131,8 @@ class TestCloudException(unittest.TestCase):
             'values': {'invalid_attribute':'data'}
             }
 
-        response.content = json.dumps(message)
-        response.json = lambda: json.loads(response.content)
+        response.text = json.dumps(message)
+        response.json = lambda: json.loads(response.text)
 
         error = CloudError(response)
         self.assertEqual(error.message, 'Bad Request')
@@ -145,7 +145,7 @@ class TestCloudException(unittest.TestCase):
             'values': {'invalid_attribute':'data'}
             }}
 
-        response.content = json.dumps(message)
+        response.text = json.dumps(message)
         error = CloudError(response)
         self.assertEqual(error.message, 'Bad Request')
         self.assertEqual(error.status_code, 400)
@@ -156,16 +156,16 @@ class TestCloudException(unittest.TestCase):
         self.assertEqual(error.status_code, 400)
         self.assertIsInstance(error.error, Response)
 
-        response.content = "{"
+        response.text = "{"
         error = CloudError(response)
         self.assertTrue("none" in error.message)
 
-        response.content = json.dumps({'message':'server error'})
+        response.text = json.dumps({'message':'server error'})
         error = CloudError(response)
         self.assertTrue("server error" in error.message)
         self.assertEqual(error.status_code, 400)
 
-        response.content = "{"
+        response.text = "{"
         response.raise_for_status.side_effect = RequestException("FAILED!")
         error = CloudError(response)
         self.assertTrue("FAILED!" in error.message)
@@ -173,16 +173,16 @@ class TestCloudException(unittest.TestCase):
 
         response.raise_for_status.side_effect = None
 
-        response.content = '{\r\n  "odata.metadata":"https://account.region.batch.azure.com/$metadata#Microsoft.Azure.Batch.Protocol.Entities.Container.errors/@Element","code":"InvalidHeaderValue","message":{\r\n    "lang":"en-US","value":"The value for one of the HTTP headers is not in the correct format.\\nRequestId:5f4c1f05-603a-4495-8e80-01f776310bbd\\nTime:2016-01-04T22:12:33.9245931Z"\r\n  },"values":[\r\n    {\r\n      "key":"HeaderName","value":"Content-Type"\r\n    },{\r\n      "key":"HeaderValue","value":"application/json; odata=minimalmetadata; charset=utf-8"\r\n    }\r\n  ]\r\n}'
+        response.text = '{\r\n  "odata.metadata":"https://account.region.batch.azure.com/$metadata#Microsoft.Azure.Batch.Protocol.Entities.Container.errors/@Element","code":"InvalidHeaderValue","message":{\r\n    "lang":"en-US","value":"The value for one of the HTTP headers is not in the correct format.\\nRequestId:5f4c1f05-603a-4495-8e80-01f776310bbd\\nTime:2016-01-04T22:12:33.9245931Z"\r\n  },"values":[\r\n    {\r\n      "key":"HeaderName","value":"Content-Type"\r\n    },{\r\n      "key":"HeaderValue","value":"application/json; odata=minimalmetadata; charset=utf-8"\r\n    }\r\n  ]\r\n}'
         error = CloudError(response)
         self.assertIsInstance(error.error, CloudErrorData)
 
-        response.content = '{"code":"Conflict","message":"The maximum number of Free ServerFarms allowed in a Subscription is 10.","target":null,"details":[{"message":"The maximum number of Free ServerFarms allowed in a Subscription is 10."},{"code":"Conflict"},{"errorentity":{"code":"Conflict","message":"The maximum number of Free ServerFarms allowed in a Subscription is 10.","extendedCode":"59301","messageTemplate":"The maximum number of {0} ServerFarms allowed in a Subscription is {1}.","parameters":["Free","10"],"innerErrors":null}}],"innererror":null}'
+        response.text = '{"code":"Conflict","message":"The maximum number of Free ServerFarms allowed in a Subscription is 10.","target":null,"details":[{"message":"The maximum number of Free ServerFarms allowed in a Subscription is 10."},{"code":"Conflict"},{"errorentity":{"code":"Conflict","message":"The maximum number of Free ServerFarms allowed in a Subscription is 10.","extendedCode":"59301","messageTemplate":"The maximum number of {0} ServerFarms allowed in a Subscription is {1}.","parameters":["Free","10"],"innerErrors":null}}],"innererror":null}'
         error = CloudError(response)
         self.assertIsInstance(error.error, CloudErrorData)
         self.assertEqual(error.error.error, "Conflict")
 
-        response.content = json.dumps({
+        response.text = json.dumps({
             "error": {
                 "code": "BadArgument",
                 "message": "The provided database 'foo' has an invalid username.",
