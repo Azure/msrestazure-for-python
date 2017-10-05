@@ -31,6 +31,12 @@ import time
 import uuid
 
 _LOGGER = logging.getLogger(__name__)
+_ARMID_RE = re.compile(
+    '/subscriptions/(?P<subscription>[^/]*)(/resource[gG]roups/(?P<resource_group>[^/]*))?'
+    '/providers/(?P<namespace>[^/]*)/(?P<type>[^/]*)/(?P<name>[^/]*)(?P<children>.*)')
+
+_CHILDREN_RE = re.compile('(/providers/(?P<child_namespace>[^/]*))?/'
+                          '(?P<child_type>[^/]*)/(?P<child_name>[^/]*)')
 
 def register_rp_hook(r, *args, **kwargs):
     """This is a requests hook to register RP automatically.
@@ -118,19 +124,12 @@ def parse_resource_id(rid):
 
     :rtype: dict
     """
-    regex = re.compile(
-        '/subscriptions/(?P<subscription>[^/]*)(/resource[gG]roups/(?P<resource_group>[^/]*))?'
-        '/providers/(?P<namespace>[^/]*)/(?P<type>[^/]*)/(?P<name>[^/]*)(?P<children>.*)')
-
-    children_regex = re.compile('(/providers/(?P<child_namespace>[^/]*))?/'
-                                '(?P<child_type>[^/]*)/(?P<child_name>[^/]*)')
-
     if not rid:
         return {}
-    match = regex.match(rid)
+    match = _ARMID_RE.match(rid)
     if match:
         result = match.groupdict()
-        children = children_regex.finditer(result["children"])
+        children = _CHILDREN_RE.finditer(result["children"])
         count = None
         for count, child in enumerate(children):
             result.update({
