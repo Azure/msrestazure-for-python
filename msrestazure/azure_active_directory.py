@@ -25,6 +25,7 @@
 # --------------------------------------------------------------------------
 
 import ast
+import os
 import logging
 import re
 import time
@@ -589,6 +590,47 @@ def get_msi_token(resource, port=50342):
     token_entry = result.json()
     return token_entry['token_type'], token_entry['access_token'], token_entry
 
+def get_msi_token_webapp(resource):
+    """Get a MSI token from inside a webapp or functions.
+
+    Env variable will look like:
+    MSI_ENDPOINT = http://127.0.0.1:41741/MSI/token/
+    MSI_SECRET = 69418689F1E342DD946CB82994CDA3CB
+    """
+    try:
+        msi_endpoint = os.environ['MSI_ENDPOINT']
+        msi_secret = os.environ['MSI_SECRET']
+    except KeyError as err:
+        err_msg = "{} required env variable was not found. You might need to restart your app/function.".format(err)
+        _LOGGER.critical(err_msg)
+        raise RuntimeError(err_msg)
+    request_uri = '{}/?resource={}&api-version=2017-09-01'.format(msi_endpoint, resource)
+    headers = {
+        'secret': msi_secret
+    }
+
+    err = None
+    try:
+        result = requests.get(request_uri, headers=headers)
+        _LOGGER.debug("MSI: Retrieving a token from %s", request_uri)
+        if result.status_code != 200:
+            err = result.text
+        # Workaround since not all failures are != 200
+        if 'ExceptionMessage' in result.text:
+            err = result.text
+    except Exception as ex:  # pylint: disable=broad-except
+        err = str(ex)
+
+    if err:
+        err_msg = "MSI: Failed to retrieve a token from '{}' with an error of '{}'.".format(
+            request_uri, err
+        )
+        _LOGGER.critical(err_msg)
+        raise RuntimeError(err_msg)
+    _LOGGER.debug('MSI: token retrieved')
+    token_entry = result.json()
+    return token_entry['token_type'], token_entry['access_token'], token_entry
+
 
 class MSIAuthentication(BasicTokenAuthentication):
     """Credentials object for MSI authentication,.
@@ -598,7 +640,7 @@ class MSIAuthentication(BasicTokenAuthentication):
     - resource (str): Alternative authentication resource, default
       is 'https://management.core.windows.net/'.
 
-    :param int port: MSI local port.
+    :param int port: MSI local port if VM/VMSS context (ignored otherwise)
     """
 
     def __init__(self, port=50342, **kwargs):
@@ -610,7 +652,10 @@ class MSIAuthentication(BasicTokenAuthentication):
         self.resource = kwargs.get('resource', self.cloud_environment.endpoints.management)
 
     def set_token(self):
-        self.scheme, _, self.token = get_msi_token(self.resource, self.port)
+        if 'MSI_ENDPOINT' in os.environ:
+            self.scheme, _, self.token = get_msi_token_webapp(self.resource)
+        else:
+            self.scheme, _, self.token = get_msi_token(self.resource, self.port)
 
     def signed_session(self):
         # Token cache is handled by the VM extension, call each time to avoid expiration
