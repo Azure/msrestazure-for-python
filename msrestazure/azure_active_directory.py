@@ -615,6 +615,9 @@ def get_msi_token_webapp(resource):
         _LOGGER.debug("MSI: Retrieving a token from %s", request_uri)
         if result.status_code != 200:
             err = result.text
+        # Workaround since not all failures are != 200
+        if 'ExceptionMessage' in result.text:
+            err = result.text
     except Exception as ex:  # pylint: disable=broad-except
         err = str(ex)
 
