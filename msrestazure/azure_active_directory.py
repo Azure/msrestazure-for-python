@@ -609,6 +609,7 @@ def get_msi_token_webapp(resource):
         'secret': msi_secret
     }
 
+    err = None
     try:
         result = requests.get(request_uri, headers=headers)
         _LOGGER.debug("MSI: Retrieving a token from %s", request_uri)
