@@ -170,7 +170,7 @@ Thank you to likel for his contribution
 
 **Bugfixes**
 
-- Adding `accept_language` and `generate_client_request_id ` default values
+- Adding `accept_language` and `generate_client_request_id` default values
 
 2016-12-12 Version 0.4.6
 ++++++++++++++++++++++++

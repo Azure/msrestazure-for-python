@@ -30,6 +30,7 @@ setup(
     name='msrestazure',
     version='0.4.15',
     author='Microsoft Corporation',
+    author_email='azpysdkhelp@microsoft.com',
     packages=['msrestazure'],
     url='https://github.com/Azure/msrestazure-for-python',
     license='MIT License',
