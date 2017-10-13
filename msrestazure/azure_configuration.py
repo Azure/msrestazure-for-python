@@ -47,11 +47,17 @@ class AzureConfiguration(Configuration):
     """
 
     def __init__(self, base_url, filepath=None):
-        super(AzureConfiguration, self).__init__(base_url, filepath)
+        super(AzureConfiguration, self).__init__(base_url)
         self.long_running_operation_timeout = 30
         self.accept_language = 'en-US'
         self.generate_client_request_id = True
         self.add_user_agent("msrest_azure/{}".format(msrestazure_version))
+
+        # ARM requires 20seconds at least. Putting 4 here is 24seconds
+        self.retry_policy.retries = 4
+
+        if filepath:
+            self.load(filepath)
 
         # Check if "hasattr", just in case msrest is older than msrestazure
         if hasattr(self, 'hooks'):
