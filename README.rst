@@ -20,6 +20,14 @@ To install:
 Release History
 ---------------
 
+2017-10-13 Version 0.4.15
++++++++++++++++++++++++++
+
+**Features**
+
+- Add support for WebApp/Functions in MSIAuthentication classes
+- Add parse_resource_id(), resource_id(), validate_resource_id() to parse ARM ids
+
 2017-09-11 Version 0.4.14
 +++++++++++++++++++++++++
 
