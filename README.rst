@@ -27,6 +27,7 @@ Release History
 
 - Add support for WebApp/Functions in MSIAuthentication classes
 - Add parse_resource_id(), resource_id(), validate_resource_id() to parse ARM ids
+- Retry strategy now n reach 24 seconds (instead of 12 seconds)
 
 2017-09-11 Version 0.4.14
 +++++++++++++++++++++++++
