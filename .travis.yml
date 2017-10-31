@@ -50,6 +50,7 @@ deploy:
   provider: pypi
   user: Laurent.Mazuel
   skip_upload_docs: true
+  skip_cleanup: true
   # password: use $PYPI_PASSWORD
   distributions: "sdist bdist_wheel"
   on:
