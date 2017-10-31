@@ -30,6 +30,15 @@ from msrest.exceptions import ClientException
 from msrest.serialization import Deserializer
 from msrest.exceptions import DeserializationError
 
+class CloudErrorRoot(object):
+    """Just match the "error" key at the root of a OdataV4 JSON.
+    """
+    _validation = {}
+    _attribute_map = {
+        'error': {'key': 'error', 'type': 'CloudErrorData'},
+    }
+    def __init__(self, error):
+        self.error = error
 
 class CloudErrorData(object):
     """Cloud Error Data object, deserialized from error data returned
@@ -47,7 +56,7 @@ class CloudErrorData(object):
 
     def __init__(self, *args, **kwargs):
         self.error = kwargs.get('error')
-        self._message = kwargs.get('message')
+        self.message = kwargs.get('message')
         self.request_id = None
         self.error_time = None
         self.target = kwargs.get('target')
@@ -122,7 +131,10 @@ class CloudError(ClientException):
     """
 
     def __init__(self, response, error=None, *args, **kwargs):
-        self.deserializer = Deserializer({'CloudErrorData': CloudErrorData})
+        self.deserializer = Deserializer({
+            'CloudErrorRoot': CloudErrorRoot,
+            'CloudErrorData': CloudErrorData
+        })
         self.error = None
         self.message = None
         self.response = response
@@ -149,13 +161,7 @@ class CloudError(ClientException):
 
     def _build_error_data(self, response):
         try:
-            data = response.json()
-        except ValueError:
-            data = response
-        else:
-            data = data.get('error', data)
-        try:
-            self.error = self.deserializer(CloudErrorData(), data)
+            self.error = self.deserializer('CloudErrorRoot', response).error
         except DeserializationError:
             self.error = None
         else:
@@ -178,7 +184,10 @@ class CloudError(ClientException):
         except ValueError:
             message = "none"
         else:
-            message = data.get("message", self._get_state(data))
+            try:
+                message = data.get("message", self._get_state(data))
+            except AttributeError: # data is not a dict, but is a requests.Response parsable as JSON
+                message = str(response.text)
         try:
             response.raise_for_status()
         except RequestException as err:

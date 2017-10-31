@@ -125,20 +125,6 @@ class TestCloudException(unittest.TestCase):
         response.headers = {"content-type": "application/json; charset=utf8"}
         response.reason = 'BadRequest'
 
-        message = {
-            'code': '500',
-            'message': {'value': 'Bad Request\nRequest:34875\nTime:1999-12-31T23:59:59-23:59'},
-            'values': {'invalid_attribute':'data'}
-            }
-
-        response.text = json.dumps(message)
-        response.json = lambda: json.loads(response.text)
-
-        error = CloudError(response)
-        self.assertEqual(error.message, 'Bad Request')
-        self.assertEqual(error.status_code, 400)
-        self.assertIsInstance(error.error, CloudErrorData)
-
         message = { 'error': {
             'code': '500',
             'message': {'value': 'Bad Request\nRequest:34875\nTime:1999-12-31T23:59:59-23:59'},
@@ -146,6 +132,7 @@ class TestCloudException(unittest.TestCase):
             }}
 
         response.text = json.dumps(message)
+        response.json = lambda: json.loads(response.text)
         error = CloudError(response)
         self.assertEqual(error.message, 'Bad Request')
         self.assertEqual(error.status_code, 400)
@@ -175,9 +162,9 @@ class TestCloudException(unittest.TestCase):
 
         response.text = '{\r\n  "odata.metadata":"https://account.region.batch.azure.com/$metadata#Microsoft.Azure.Batch.Protocol.Entities.Container.errors/@Element","code":"InvalidHeaderValue","message":{\r\n    "lang":"en-US","value":"The value for one of the HTTP headers is not in the correct format.\\nRequestId:5f4c1f05-603a-4495-8e80-01f776310bbd\\nTime:2016-01-04T22:12:33.9245931Z"\r\n  },"values":[\r\n    {\r\n      "key":"HeaderName","value":"Content-Type"\r\n    },{\r\n      "key":"HeaderValue","value":"application/json; odata=minimalmetadata; charset=utf-8"\r\n    }\r\n  ]\r\n}'
         error = CloudError(response)
-        self.assertIsInstance(error.error, CloudErrorData)
+        self.assertIn("The value for one of the HTTP headers is not in the correct format", error.message)
 
-        response.text = '{"code":"Conflict","message":"The maximum number of Free ServerFarms allowed in a Subscription is 10.","target":null,"details":[{"message":"The maximum number of Free ServerFarms allowed in a Subscription is 10."},{"code":"Conflict"},{"errorentity":{"code":"Conflict","message":"The maximum number of Free ServerFarms allowed in a Subscription is 10.","extendedCode":"59301","messageTemplate":"The maximum number of {0} ServerFarms allowed in a Subscription is {1}.","parameters":["Free","10"],"innerErrors":null}}],"innererror":null}'
+        response.text = '{"error":{"code":"Conflict","message":"The maximum number of Free ServerFarms allowed in a Subscription is 10.","target":null,"details":[{"message":"The maximum number of Free ServerFarms allowed in a Subscription is 10."},{"code":"Conflict"},{"errorentity":{"code":"Conflict","message":"The maximum number of Free ServerFarms allowed in a Subscription is 10.","extendedCode":"59301","messageTemplate":"The maximum number of {0} ServerFarms allowed in a Subscription is {1}.","parameters":["Free","10"],"innerErrors":null}}],"innererror":null}}'
         error = CloudError(response)
         self.assertIsInstance(error.error, CloudErrorData)
         self.assertEqual(error.error.error, "Conflict")
@@ -198,6 +185,11 @@ class TestCloudException(unittest.TestCase):
         error = CloudError(response)
         self.assertIsInstance(error.error, CloudErrorData)
         self.assertEqual(error.error.error, "BadArgument")
+
+        # See https://github.com/Azure/msrestazure-for-python/issues/54
+        response.text = '"{\\"error\\": {\\"code\\": \\"ResourceGroupNotFound\\", \\"message\\": \\"Resource group \'res_grp\' could not be found.\\"}}"'
+        error = CloudError(response)
+        self.assertIn(response.text, error.message)
 
 
 if __name__ == '__main__':
