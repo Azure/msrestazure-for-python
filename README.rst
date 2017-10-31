@@ -20,6 +20,13 @@ To install:
 Release History
 ---------------
 
+2017-10-31 Version 0.4.16
++++++++++++++++++++++++++
+
+**Bugfixes**
+
+- Fix AttributeError if input JSON is not a dict (#54)
+
 2017-10-13 Version 0.4.15
 +++++++++++++++++++++++++
 
