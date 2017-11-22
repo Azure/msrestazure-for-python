@@ -20,6 +20,13 @@ To install:
 Release History
 ---------------
 
+2017-11-22 Version 0.4.17
++++++++++++++++++++++++++
+
+**Bugfixes**
+
+- Fix AttributeError if error JSON from ARM does not follow ODatav4 (as it should)
+
 2017-10-31 Version 0.4.16
 +++++++++++++++++++++++++
 
