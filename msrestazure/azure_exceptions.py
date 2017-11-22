@@ -164,6 +164,9 @@ class CloudError(ClientException):
             self.error = self.deserializer('CloudErrorRoot', response).error
         except DeserializationError:
             self.error = None
+        except AttributeError:
+            # So far seen on Autorest test server only.
+            self.error = None
         else:
             if self.error:
                 if not self.error.error or not self.error.message:
