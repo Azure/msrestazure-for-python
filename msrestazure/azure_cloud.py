@@ -243,5 +243,7 @@ def get_cloud_from_metadata_endpoint(arm_endpoint, name=None):
     :raises: MetadataEndpointError if unable to build the Cloud object
     """
     cloud = Cloud(name or arm_endpoint)
+    cloud.endpoints.management = arm_endpoint
+    cloud.endpoints.resource_manager = arm_endpoint
     _populate_from_metadata_endpoint(cloud, arm_endpoint)
     return cloud
