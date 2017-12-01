@@ -20,6 +20,14 @@ To install:
 Release History
 ---------------
 
+2017-12-01 Version 0.4.18
++++++++++++++++++++++++++
+
+**Bugfixes**
+
+- get_cloud_from_metadata_endpoint incorrect on AzureStack #62
+- get_cloud_from_metadata_endpoint certificate issue #61
+
 2017-11-22 Version 0.4.17
 +++++++++++++++++++++++++
 
