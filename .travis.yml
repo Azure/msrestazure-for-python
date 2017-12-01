@@ -39,6 +39,7 @@ matrix:
       env: TOXENV=py36-autorest
       <<: *_autorest_install
   allow_failures:
+    - env: TOXENV=py33
     - env: TOXENV=py27-autorest
     - env: TOXENV=py33-autorest
     - env: TOXENV=py34-autorest
