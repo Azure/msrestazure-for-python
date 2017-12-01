@@ -195,7 +195,7 @@ AZURE_GERMAN_CLOUD = Cloud(
         sql_server_hostname='.database.cloudapi.de'))
 
 
-def _populate_from_metadata_endpoint(cloud, arm_endpoint):
+def _populate_from_metadata_endpoint(cloud, arm_endpoint, session=None):
     endpoints_in_metadata = ['active_directory_graph_resource_id',
                              'active_directory_resource_id', 'active_directory']
     if not arm_endpoint or all([cloud.endpoints.has_endpoint_set(n) for n in endpoints_in_metadata]):
@@ -203,6 +203,7 @@ def _populate_from_metadata_endpoint(cloud, arm_endpoint):
     try:
         error_msg_fmt = "Unable to get endpoints from the cloud.\n{}"
         import requests
+        session = requests.Session() if session is None else session
         metadata_endpoint = arm_endpoint + METADATA_ENDPOINT_SUFFIX
         response = requests.get(metadata_endpoint)
         if response.status_code == 200:
@@ -225,7 +226,7 @@ def _populate_from_metadata_endpoint(cloud, arm_endpoint):
         msg = 'Response body does not contain valid json. Error detail: {}'.format(str(err))
         raise MetadataEndpointError(error_msg_fmt.format(msg))
 
-def get_cloud_from_metadata_endpoint(arm_endpoint, name=None):
+def get_cloud_from_metadata_endpoint(arm_endpoint, name=None, session=None):
     """Get a Cloud object from an ARM endpoint.
 
     .. versionadded:: 0.4.11
@@ -238,6 +239,7 @@ def get_cloud_from_metadata_endpoint(arm_endpoint, name=None):
 
     :param str arm_endpoint: The ARM management endpoint
     :param str name: An optional name for the Cloud object. Otherwise it's the ARM endpoint
+    :params requests.Session session: A requests session object if you need to configure proxy, cert, etc.
     :rtype Cloud:
     :returns: a Cloud object
     :raises: MetadataEndpointError if unable to build the Cloud object
@@ -245,5 +247,5 @@ def get_cloud_from_metadata_endpoint(arm_endpoint, name=None):
     cloud = Cloud(name or arm_endpoint)
     cloud.endpoints.management = arm_endpoint
     cloud.endpoints.resource_manager = arm_endpoint
-    _populate_from_metadata_endpoint(cloud, arm_endpoint)
+    _populate_from_metadata_endpoint(cloud, arm_endpoint, session)
     return cloud
