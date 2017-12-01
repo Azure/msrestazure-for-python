@@ -52,12 +52,16 @@ class TestCloud(unittest.TestCase):
 
         cloud = azure_cloud.get_cloud_from_metadata_endpoint("https://management.azure.com")
         self.assertEqual("https://management.azure.com", cloud.name)
+        self.assertEqual("https://management.azure.com", cloud.endpoints.management)
+        self.assertEqual("https://management.azure.com", cloud.endpoints.resource_manager)
         self.assertEqual("https://gallery.azure.com", cloud.endpoints.gallery)
         self.assertEqual("https://graph.windows.net/", cloud.endpoints.active_directory_graph_resource_id)
         self.assertEqual("https://login.windows.net", cloud.endpoints.active_directory)
 
         cloud = azure_cloud.get_cloud_from_metadata_endpoint("https://management.azure.com", "Public Azure")
         self.assertEqual("Public Azure", cloud.name)
+        self.assertEqual("https://management.azure.com", cloud.endpoints.management)
+        self.assertEqual("https://management.azure.com", cloud.endpoints.resource_manager)
         self.assertEqual("https://gallery.azure.com", cloud.endpoints.gallery)
         self.assertEqual("https://graph.windows.net/", cloud.endpoints.active_directory_graph_resource_id)
         self.assertEqual("https://login.windows.net", cloud.endpoints.active_directory)
