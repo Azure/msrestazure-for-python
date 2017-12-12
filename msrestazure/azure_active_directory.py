@@ -149,7 +149,7 @@ class AADMixin(OAuthTokenAuthentication):
         self.cloud_environment = kwargs.get('cloud_environment', self.cloud_environment)
 
         auth_endpoint = self.cloud_environment.endpoints.active_directory
-        resource = self.cloud_environment.endpoints.management
+        resource = self.cloud_environment.endpoints.active_directory_resource_id
 
         tenant = kwargs.get('tenant', self._tenant)
         self.auth_uri = kwargs.get('auth_uri', _https(
@@ -649,7 +649,7 @@ class MSIAuthentication(BasicTokenAuthentication):
         self.port = port
 
         self.cloud_environment = kwargs.get('cloud_environment', AZURE_PUBLIC_CLOUD)
-        self.resource = kwargs.get('resource', self.cloud_environment.endpoints.management)
+        self.resource = kwargs.get('resource', self.cloud_environment.endpoints.active_directory_resource_id)
 
     def set_token(self):
         if 'MSI_ENDPOINT' in os.environ:
