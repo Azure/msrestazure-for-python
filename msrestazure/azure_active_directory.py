@@ -564,7 +564,7 @@ def get_msi_token(resource, port=50342, client_id=None):
 
     :param str resource: The resource where the token would be use.
     :param int port: The port is not the default 50342 is used.
-    :param str client_id: Client ID if explicit MSI (default implicit)
+    :param str client_id: Client ID if User Assigned Identity MSI (default System Assigned)
     """
     request_uri = 'http://localhost:{}/oauth2/token'.format(port)
     payload = {
@@ -654,7 +654,7 @@ class MSIAuthentication(BasicTokenAuthentication):
       is 'https://management.core.windows.net/'.
 
     :param int port: MSI local port if VM/VMSS context (ignored otherwise)
-    :param str client_id: MSI Explicit id if used (by default look for implicit)
+    :param str client_id: User Assigned Identity id if used (by default System Assigned Identity)
     """
 
     def __init__(self, port=50342, client_id=None, **kwargs):
