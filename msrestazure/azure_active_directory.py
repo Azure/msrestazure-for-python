@@ -559,11 +559,19 @@ class AdalAuthentication(Authentication):  # pylint: disable=too-few-public-meth
         return session
 
 
-def get_msi_token(resource, port=50342):
+def get_msi_token(resource, port=50342, client_id=None):
+    """Get MSI token from inside a VM/VMSS.
+
+    :param str resource: The resource where the token would be use.
+    :param int port: The port is not the default 50342 is used.
+    :param str client_id: Client ID if explicit MSI (default implicit)
+    """
     request_uri = 'http://localhost:{}/oauth2/token'.format(port)
     payload = {
         'resource': resource
     }
+    if client_id:
+        payload["client_id"] = client_id
 
     # retry as the token endpoint might not be available yet, one example is you use CLI in a
     # custom script extension of VMSS, which might get provisioned before the MSI extensioon
@@ -632,6 +640,11 @@ def get_msi_token_webapp(resource):
     return token_entry['token_type'], token_entry['access_token'], token_entry
 
 
+def _is_app_service():
+    # Might be discussed if we think it's not robust enough
+    return 'APPSETTING_WEBSITE_SITE_NAME' in os.environ
+
+
 class MSIAuthentication(BasicTokenAuthentication):
     """Credentials object for MSI authentication,.
 
@@ -641,21 +654,23 @@ class MSIAuthentication(BasicTokenAuthentication):
       is 'https://management.core.windows.net/'.
 
     :param int port: MSI local port if VM/VMSS context (ignored otherwise)
+    :param str client_id: MSI Explicit id if used (by default look for implicit)
     """
 
-    def __init__(self, port=50342, **kwargs):
+    def __init__(self, port=50342, client_id=None, **kwargs):
         super(MSIAuthentication, self).__init__(None)
 
         self.port = port
+        self.client_id = client_id
 
         self.cloud_environment = kwargs.get('cloud_environment', AZURE_PUBLIC_CLOUD)
         self.resource = kwargs.get('resource', self.cloud_environment.endpoints.active_directory_resource_id)
 
     def set_token(self):
-        if 'MSI_ENDPOINT' in os.environ:
+        if _is_app_service():
             self.scheme, _, self.token = get_msi_token_webapp(self.resource)
         else:
-            self.scheme, _, self.token = get_msi_token(self.resource, self.port)
+            self.scheme, _, self.token = get_msi_token(self.resource, self.port, self.client_id)
 
     def signed_session(self):
         # Token cache is handled by the VM extension, call each time to avoid expiration
