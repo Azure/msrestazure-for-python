@@ -655,7 +655,7 @@ class MSIAuthentication(BasicTokenAuthentication):
     Optional kwargs may include:
     - client_id: Identifies, by Azure AD client id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with object_id and msi_res_id.
     - object_id: Identifies, by Azure AD object id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with client_id and msi_res_id.
-    - msi_res_id: Identifies, by urlencoded ARM resource id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with client_id and object_id.
+    - msi_res_id: Identifies, by ARM resource id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with client_id and object_id.
     - cloud_environment (msrestazure.azure_cloud.Cloud): A targeted cloud environment
     - resource (str): Alternative authentication resource, default
       is 'https://management.core.windows.net/'.
