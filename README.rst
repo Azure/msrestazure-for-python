@@ -20,6 +20,19 @@ To install:
 Release History
 ---------------
 
+2017-12-14 Version 0.4.19
++++++++++++++++++++++++++
+
+**Feature**
+
+* Improve MSIAuthentication to support User Assigned Identity #70
+
+**Bugfixes**
+
+* Fix session obj for cloudmetadata endpoint #67
+* Fix authentication resource node for AzureSatck #65
+* Better detection of AppService with MSIAuthentication #70
+
 2017-12-01 Version 0.4.18
 +++++++++++++++++++++++++
 
