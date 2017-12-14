@@ -674,6 +674,8 @@ class MSIAuthentication(BasicTokenAuthentication):
 
     def set_token(self):
         if _is_app_service():
+            if self.msi_conf:
+                raise AuthenticationError("User Assigned Entity is not available on WebApp yet.")
             self.scheme, _, self.token = get_msi_token_webapp(self.resource)
         else:
             self.scheme, _, self.token = get_msi_token(self.resource, self.port, self.msi_conf)
