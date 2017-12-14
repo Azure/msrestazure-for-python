@@ -559,19 +559,23 @@ class AdalAuthentication(Authentication):  # pylint: disable=too-few-public-meth
         return session
 
 
-def get_msi_token(resource, port=50342, client_id=None):
+def get_msi_token(resource, port=50342, msi_conf=None):
     """Get MSI token from inside a VM/VMSS.
+
+    If msi_conf is used, must be a dict of one key in ["client_id", "object_id", "msi_res_id"]
 
     :param str resource: The resource where the token would be use.
     :param int port: The port is not the default 50342 is used.
-    :param str client_id: Client ID if User Assigned Identity MSI (default System Assigned)
+    :param dict[str, str] msi_conf: msi_conf is User Assigned (if not specified, assume System Assigned)
     """
     request_uri = 'http://localhost:{}/oauth2/token'.format(port)
     payload = {
         'resource': resource
     }
-    if client_id:
-        payload["client_id"] = client_id
+    if msi_conf:
+        if len(msi_conf) > 1:
+            raise ValueError("{} are mutually exclusive".format(list(msi_conf.keys())))
+        payload.update(msi_conf)
 
     # retry as the token endpoint might not be available yet, one example is you use CLI in a
     # custom script extension of VMSS, which might get provisioned before the MSI extensioon
@@ -649,6 +653,9 @@ class MSIAuthentication(BasicTokenAuthentication):
     """Credentials object for MSI authentication,.
 
     Optional kwargs may include:
+    - client_id: Identifies, by Azure AD client id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with object_id and msi_res_id.
+    - object_id: Identifies, by Azure AD object id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with client_id and msi_res_id.
+    - msi_res_id: Identifies, by urlencoded ARM resource id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with client_id and object_id.
     - cloud_environment (msrestazure.azure_cloud.Cloud): A targeted cloud environment
     - resource (str): Alternative authentication resource, default
       is 'https://management.core.windows.net/'.
@@ -657,11 +664,11 @@ class MSIAuthentication(BasicTokenAuthentication):
     :param str client_id: User Assigned Identity id if used (by default System Assigned Identity)
     """
 
-    def __init__(self, port=50342, client_id=None, **kwargs):
+    def __init__(self, port=50342, **kwargs):
         super(MSIAuthentication, self).__init__(None)
 
         self.port = port
-        self.client_id = client_id
+        self.msi_conf = {k:v for k,v in kwargs.items() if k in ["client_id", "object_id", "msi_res_id"]}
 
         self.cloud_environment = kwargs.get('cloud_environment', AZURE_PUBLIC_CLOUD)
         self.resource = kwargs.get('resource', self.cloud_environment.endpoints.active_directory_resource_id)
@@ -670,7 +677,7 @@ class MSIAuthentication(BasicTokenAuthentication):
         if _is_app_service():
             self.scheme, _, self.token = get_msi_token_webapp(self.resource)
         else:
-            self.scheme, _, self.token = get_msi_token(self.resource, self.port, self.client_id)
+            self.scheme, _, self.token = get_msi_token(self.resource, self.port, self.msi_conf)
 
     def signed_session(self):
         # Token cache is handled by the VM extension, call each time to avoid expiration
