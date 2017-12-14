@@ -566,7 +566,7 @@ def get_msi_token(resource, port=50342, msi_conf=None):
 
     :param str resource: The resource where the token would be use.
     :param int port: The port is not the default 50342 is used.
-    :param dict[str, str] msi_conf: msi_conf if User Assigned (if not specified, assume System Assigned)
+    :param dict[str, str] msi_conf: msi_conf if to request a token through a User Assigned Identity (if not specified, assume System Assigned)
     """
     request_uri = 'http://localhost:{}/oauth2/token'.format(port)
     payload = {
