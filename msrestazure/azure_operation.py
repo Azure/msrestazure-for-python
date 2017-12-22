@@ -332,10 +332,12 @@ def handle_exceptions(operation, response):
     try:
         raise
     except BadStatus:
-        operation.status = 'Failed'
+        if operation:
+            operation.status = 'Failed'
         raise CloudError(response)
     except BadResponse as err:
-        operation.status = 'Failed'
+        if operation:
+            operation.status = 'Failed'
         raise CloudError(response, str(err))
     except OperationFailed:
         raise CloudError(response)

@@ -55,24 +55,22 @@ class AzureOperationPoller(asyncio.Future):
 
     def __init__(self, send_cmd, output_cmd, update_cmd, timeout=30, *, loop=None):
         super(AzureOperationPoller, self).__init__(loop=loop)
+        self._send_cmd = send_cmd
         self._output_cmd = output_cmd
         self._update_cmd = update_cmd
         self._timeout = timeout
+        self._operation = None
 
+        asyncio.ensure_future(self._get_coroutine(), loop=loop)
+
+    async def _get_coroutine(self):
         try:
-            self._response = send_cmd() # Should be "yield from" ?
-            self._operation = LongRunningOperation(self._response, output_cmd)
+            self._response = await self._send_cmd()
+            self._operation = LongRunningOperation(self._response, self._output_cmd)
             self._operation.set_initial_status(self._response)
-        except Exception:
-            handle_exceptions(self._operation, self._response)
-        asyncio.ensure_future(self._get_coroutine())
 
-    @asyncio.coroutine
-    def _get_coroutine(self):
-        try:
-            if finished(self.status()):
-                self.set_result(self._operation.resource)
-            yield from self._poll(self._update_cmd)
+            if not finished(self.status()):
+                await self._poll(self._update_cmd)
         except Exception:
             try:
                 handle_exceptions(self._operation, self._response)
@@ -81,17 +79,16 @@ class AzureOperationPoller(asyncio.Future):
         else:
             self.set_result(self._operation.resource)
 
-    @asyncio.coroutine
-    def _delay(self):
+    async def _delay(self):
         """Check for a 'retry-after' header to set timeout,
         otherwise use configured timeout.
         """
         if self._response is None:
-            yield from asyncio.sleep(0)
+            await asyncio.sleep(0)
         if self._response.headers.get('retry-after'):
-            yield from asyncio.sleep(int(self._response.headers['retry-after']))
+            await asyncio.sleep(int(self._response.headers['retry-after']))
         else:
-            yield from asyncio.sleep(self._timeout)
+            await asyncio.sleep(self._timeout)
 
     def _polling_cookie(self):
         """Collect retry cookie - we only want to do this for the test server
@@ -106,8 +103,7 @@ class AzureOperationPoller(asyncio.Future):
             return {'cookie': self._response.headers.get('set-cookie', '')}
         return {}
 
-    @asyncio.coroutine
-    def _poll(self, update_cmd):
+    async def _poll(self, update_cmd):
         """Poll status of operation so long as operation is incomplete and
         we have an endpoint to query.
 
@@ -119,25 +115,23 @@ class AzureOperationPoller(asyncio.Future):
         """
         initial_url = self._response.request.url
         while not finished(self.status()):
-            yield from self._delay()
+            await self._delay()
             headers = self._polling_cookie()
 
-            # All update_cmd should be "yield from"
-
             if self._operation.async_url:
-                self._response = update_cmd(
+                self._response = await update_cmd(
                     self._operation.async_url, headers)
                 self._operation.set_async_url_if_present(self._response)
                 self._operation.get_status_from_async(
                     self._response)
             elif self._operation.location_url:
-                self._response = update_cmd(
+                self._response = await update_cmd(
                     self._operation.location_url, headers)
                 self._operation.set_async_url_if_present(self._response)
                 self._operation.get_status_from_location(
                     self._response)
             elif self._operation.method == "PUT":
-                self._response = update_cmd(initial_url, headers)
+                self._response = await update_cmd(initial_url, headers)
                 self._operation.set_async_url_if_present(self._response)
                 self._operation.get_status_from_resource(
                     self._response)
