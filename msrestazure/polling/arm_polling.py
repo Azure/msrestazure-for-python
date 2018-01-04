@@ -103,7 +103,6 @@ class LongRunningOperation(object):
     Provides default logic for interpreting operation responses
     and status updates.
     """
-    _convert = re.compile('([a-z0-9])([A-Z])')
 
     def __init__(self, response, deserialization_callback):
         self.method = response.request.method
@@ -289,7 +288,7 @@ class LongRunningOperation(object):
             raise BadResponse("Unable to find a valid status link for polling")
 
 
-class ARMPolling(object):
+class ARMPolling(PollingMethod):
 
     def __init__(self, timeout=30):
         self._timeout = timeout
