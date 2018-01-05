@@ -80,7 +80,7 @@ ERROR = 'http://dummyurl_ReturnError'
 POLLING_STATUS = 200
 
 CLIENT = ServiceClient(None, None)
-def mock_send(client_self, request, header_parameters):
+def mock_send(client_self, request, header_parameters, stream):
     return TestArmPolling.mock_update(request.url, header_parameters)
 CLIENT.send = types.MethodType(mock_send, CLIENT)
 

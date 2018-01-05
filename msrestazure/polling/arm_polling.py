@@ -290,10 +290,11 @@ class LongRunningOperation(object):
 
 class ARMPolling(PollingMethod):
 
-    def __init__(self, timeout=30):
+    def __init__(self, timeout=30, **operation_config):
         self._timeout = timeout
         self._operation = None # Will hold an instance of LongRunningOperation
         self._response = None  # Will hold latest received response
+        self._operation_config = operation_config
 
     def status(self):
         """Return the current status as a string.
@@ -413,4 +414,4 @@ class ARMPolling(PollingMethod):
         header_parameters = {
             'x-ms-client-request-id': self._operation.initial_response.request.headers['x-ms-client-request-id']
         }
-        return self._client.send(request, header_parameters)
+        return self._client.send(request, header_parameters, stream=False, **self._operation_config)
