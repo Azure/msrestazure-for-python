@@ -119,6 +119,7 @@ class TestCloudException(unittest.TestCase):
         self.assertEqual(cloud_exp.target, 'query')
         self.assertEqual(cloud_exp.details[0].target, '$search')
         self.assertEqual(cloud_exp.innererror['customKey'], 'customValue')
+        self.assertIn('customValue', str(cloud_exp))
 
 
 
