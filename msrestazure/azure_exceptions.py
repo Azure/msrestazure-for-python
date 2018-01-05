@@ -24,6 +24,8 @@
 #
 # --------------------------------------------------------------------------
 
+import json
+
 from requests import RequestException
 
 from msrest.exceptions import ClientException
@@ -51,6 +53,7 @@ class CloudErrorData(object):
         'message': {'key': 'message', 'type': 'str'},
         'target': {'key': 'target', 'type': 'str'},
         'details': {'key': 'details', 'type': '[CloudErrorData]'},
+        'innererror': {'key': 'innererror', 'type': 'object'},
         'data': {'key': 'values', 'type': '{str}'}
         }
 
@@ -61,6 +64,7 @@ class CloudErrorData(object):
         self.error_time = None
         self.target = kwargs.get('target')
         self.details = kwargs.get('details')
+        self.innererror = kwargs.get('innererror')
         self.data = kwargs.get('data')
         super(CloudErrorData, self).__init__(*args)
 
@@ -83,7 +87,12 @@ class CloudErrorData(object):
             for error_obj in self.details:
                 error_str += "\n\tError Code: {}".format(error_obj.error)
                 error_str += "\n\tMessage: {}".format(error_obj.message)
-                error_str += "\n\tTarget: {}".format(error_obj.target)
+                if error_obj.target:
+                    error_str += "\n\tTarget: {}".format(error_obj.target)
+                if error_obj.innererror:
+                    error_str += "\nInner error: {}".format(json.dumps(error_obj.innererror, indent=4))
+        if self.innererror:
+            error_str += "\nInner error: {}".format(json.dumps(self.innererror, indent=4))
         error_bytes = error_str.encode()
         return error_bytes.decode('ascii')
 
