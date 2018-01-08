@@ -1,4 +1,4 @@
-﻿# --------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 #
 # Copyright (c) Microsoft Corporation. All rights reserved.
 #
@@ -23,34 +23,3 @@
 # IN THE SOFTWARE.
 #
 # --------------------------------------------------------------------------
-
-from setuptools import setup
-
-setup(
-    name='msrestazure',
-    version='0.4.19',
-    author='Microsoft Corporation',
-    author_email='azpysdkhelp@microsoft.com',
-    packages=['msrestazure'],
-    url='https://github.com/Azure/msrestazure-for-python',
-    license='MIT License',
-    description=('AutoRest swagger generator Python client runtime. '
-                 'Azure-specific module.'),
-    long_description=open('README.rst').read(),
-    classifiers=[
-        'Development Status :: 4 - Beta',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
-        'License :: OSI Approved :: MIT License',
-        'Topic :: Software Development'],
-    install_requires=[
-        "msrest>=0.4.25,<2.0.0",
-        "keyring>=5.6",
-        "adal~=0.4.7"
-    ],
-)
