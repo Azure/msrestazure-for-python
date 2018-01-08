@@ -24,14 +24,14 @@
 #
 # --------------------------------------------------------------------------
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='msrestazure',
-    version='0.4.19',
+    version='0.4.20',
     author='Microsoft Corporation',
     author_email='azpysdkhelp@microsoft.com',
-    packages=['msrestazure'],
+    packages=find_packages(exclude=["tests", "tests.*"]),
     url='https://github.com/Azure/msrestazure-for-python',
     license='MIT License',
     description=('AutoRest swagger generator Python client runtime. '
