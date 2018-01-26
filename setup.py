@@ -51,6 +51,6 @@ setup(
     install_requires=[
         "msrest>=0.4.25,<2.0.0",
         "keyring>=5.6",
-        "adal~=0.4.7"
+        "adal~=0.5.0"
     ],
 )
