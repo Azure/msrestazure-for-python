@@ -20,6 +20,11 @@ To install:
 Release History
 ---------------
 
+2018-01-26 Version 0.4.21
++++++++++++++++++++++++++
+
+- Update allowed ADAL dependency to 0.5.x
+
 2018-01-08 Version 0.4.20
 +++++++++++++++++++++++++
 
