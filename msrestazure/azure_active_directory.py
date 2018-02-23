@@ -579,26 +579,16 @@ def get_msi_token(resource, port=50342, msi_conf=None):
 
     # retry as the token endpoint might not be available yet, one example is you use CLI in a
     # custom script extension of VMSS, which might get provisioned before the MSI extensioon
-    while True:
-        err = None
-        try:
-            result = requests.post(request_uri, data=payload, headers={'Metadata': 'true'})
-            _LOGGER.debug("MSI: Retrieving a token from %s, with payload %s", request_uri, payload)
-            if result.status_code != 200:
-                err = result.text
-        except Exception as ex:  # pylint: disable=broad-except
-            err = str(ex)
-
-        if err:
-            # we might need some error code checking to avoid silly waiting. The bottom line is users can
-            # always press ctrl+c to stop it
-            _LOGGER.warning("MSI: Failed to retrieve a token from '%s' with an error of '%s'. This could be caused "
-                            "by the MSI extension not yet fullly provisioned. Will retry in 60 seconds...",
-                            request_uri, err)
-            time.sleep(60)
-        else:
-            _LOGGER.debug('MSI: token retrieved')
-            break
+    # user might want to catch the exception and retry
+    try:
+        result = requests.post(request_uri, data=payload, headers={'Metadata': 'true'})
+        _LOGGER.debug("MSI: Retrieving a token from %s, with payload %s", request_uri, payload)
+        result.raise_for_status()
+    except Exception as ex:  # pylint: disable=broad-except
+        _LOGGER.warning("MSI: Failed to retrieve a token from '%s' with an error of '%s'. This could be caused "
+                        "by the MSI extension not yet fullly provisioned.",
+                        request_uri, ex)
+        raise 
     token_entry = result.json()
     return token_entry['token_type'], token_entry['access_token'], token_entry
 

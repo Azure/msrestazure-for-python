@@ -35,6 +35,7 @@ except ImportError:
 from requests_oauthlib import OAuth2Session
 import oauthlib
 import adal
+import httpretty
 
 from msrestazure import AzureConfiguration
 from msrestazure import azure_active_directory
@@ -42,10 +43,11 @@ from msrestazure.azure_active_directory import (
     AADMixin,
     ServicePrincipalCredentials,
     UserPassCredentials,
-    AdalAuthentication
+    AdalAuthentication,
+    MSIAuthentication
 )
 from msrest.exceptions import TokenExpiredError, AuthenticationError
-from requests import ConnectionError
+from requests import ConnectionError, HTTPError
 
 
 class TestServicePrincipalCredentials(unittest.TestCase):
@@ -373,6 +375,34 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         credentials = AdalAuthentication(connection_error)
         with self.assertRaises(AuthenticationError) as cm:
             session = credentials.signed_session()
+
+    @httpretty.activate
+    def test_msi_vm(self):
+
+        json_payload = {
+            'token_type': "TokenType",
+            "access_token": "AccessToken"
+        }
+        httpretty.register_uri(httpretty.POST,
+                               'http://localhost:666/oauth2/token',
+                               body=json.dumps(json_payload),
+                               content_type="application/json")
+
+        credentials = MSIAuthentication(port=666)
+        credentials.set_token()
+        assert credentials.scheme == "TokenType"
+        assert credentials.token == json_payload
+        
+        httpretty.register_uri(httpretty.POST,
+                               'http://localhost:42/oauth2/token',
+                               status=503,
+                               content_type="application/json")
+
+        credentials = MSIAuthentication(port=42)
+        with self.assertRaises(HTTPError):
+            credentials.set_token()
+
+
 
 if __name__ == '__main__':
     unittest.main()
