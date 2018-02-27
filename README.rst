@@ -20,6 +20,21 @@ To install:
 Release History
 ---------------
 
+2018-02-27 Version 0.4.22
++++++++++++++++++++++++++
+
+**Bugfix**
+
+- Remove a possible infinite loop with MSIAuthentication #77
+
+**Disclaimer**
+
+From this version, MSIAuthentication will fail instantly if you try to get MSI token
+from a VM where the extension is not installed, or not yet ready.
+You need to do your own retry mechanism if you think the extension is provisioning and
+the call might succeed later.
+This behavior is consistent with other Azure SDK implementation of MSI scenarios.
+
 2018-01-26 Version 0.4.21
 +++++++++++++++++++++++++
 
