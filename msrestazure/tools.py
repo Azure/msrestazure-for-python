@@ -41,6 +41,9 @@ _CHILDREN_RE = re.compile('(/providers/(?P<child_namespace>[^/]*))?/'
 def register_rp_hook(r, *args, **kwargs):
     """This is a requests hook to register RP automatically.
 
+    You should not use this command manually, this is added automatically
+    by the SDK.
+
     See requests documentation for details of the signature of this function.
     http://docs.python-requests.org/en/master/user/advanced/#event-hooks
     """
@@ -122,7 +125,7 @@ def parse_resource_id(rid):
         - resource_type:           Type of the target resource (not the parent)
         - resource_name:           Name of the target resource (not the parent)
 
-    :rtype: dict
+    :rtype: dict[str,str]
     """
     if not rid:
         return {}

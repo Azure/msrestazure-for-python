@@ -328,6 +328,9 @@ class AzureOperationPoller(object):
     """Initiates long running operation and polls status in separate
     thread.
 
+    This class is used in old SDK and has been replaced. See "polling"
+    submodule now.
+
     :param callable send_cmd: The API request to initiate the operation.
     :param callable update_cmd: The API reuqest to check the status of
         the operation.

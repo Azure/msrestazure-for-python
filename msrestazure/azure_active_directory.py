@@ -110,6 +110,7 @@ def _https(uri, *extra):
 class AADMixin(OAuthTokenAuthentication):
     """Mixin for Authentication object.
     Provides some AAD functionality:
+
     - State validation
     - Token caching and retrieval
     - Default AAD configuration
@@ -124,6 +125,7 @@ class AADMixin(OAuthTokenAuthentication):
         """Configure authentication endpoint.
 
         Optional kwargs may include:
+
             - cloud_environment (msrestazure.azure_cloud.Cloud): A targeted cloud environment
             - china (bool): Configure auth for China-based service,
               default is 'False'.
@@ -246,7 +248,6 @@ class AADMixin(OAuthTokenAuthentication):
         """Clear any stored tokens.
 
         :raises: KeyError if failed to clear token.
-        :rtype: None
         """
         try:
             keyring.delete_password(self.cred_store, self.store_key)
@@ -255,8 +256,7 @@ class AADMixin(OAuthTokenAuthentication):
 
 
 class AADRefreshMixin(object):
-    """
-    Additional token refresh logic
+    """Additional token refresh logic.
     """
 
     def refresh_session(self):
@@ -280,6 +280,7 @@ class AADTokenCredentials(AADMixin):
     e.g. Python ADAL lib.
 
     Optional kwargs may include:
+
     - cloud_environment (msrestazure.azure_cloud.Cloud): A targeted cloud environment
     - china (bool): Configure auth for China-based service,
       default is 'False'.
@@ -327,6 +328,7 @@ class UserPassCredentials(AADRefreshMixin, AADMixin):
     that 2-factor auth be disabled.
 
     Optional kwargs may include:
+
     - cloud_environment (msrestazure.azure_cloud.Cloud): A targeted cloud environment
     - china (bool): Configure auth for China-based service,
       default is 'False'.
@@ -411,6 +413,7 @@ class ServicePrincipalCredentials(AADRefreshMixin, AADMixin):
     Authenticates via a Client ID and Secret.
 
     Optional kwargs may include:
+
     - cloud_environment (msrestazure.azure_cloud.Cloud): A targeted cloud environment
     - china (bool): Configure auth for China-based service,
       default is 'False'.
@@ -476,6 +479,8 @@ class ServicePrincipalCredentials(AADRefreshMixin, AADMixin):
 
 # For backward compatibility of import, but I doubt someone uses that...
 class InteractiveCredentials(object):
+    """This class has been removed and using it will raise a NotImplementedError error.
+    """
     def __init__(self, *args, **kwargs):
         raise NotImplementedError("InteractiveCredentials was not functionning and was removed. Please use ADAL and device code instead.")
 
@@ -566,7 +571,7 @@ def get_msi_token(resource, port=50342, msi_conf=None):
 
     :param str resource: The resource where the token would be use.
     :param int port: The port is not the default 50342 is used.
-    :param dict[str, str] msi_conf: msi_conf if to request a token through a User Assigned Identity (if not specified, assume System Assigned)
+    :param dict[str,str] msi_conf: msi_conf if to request a token through a User Assigned Identity (if not specified, assume System Assigned)
     """
     request_uri = 'http://localhost:{}/oauth2/token'.format(port)
     payload = {
@@ -596,8 +601,9 @@ def get_msi_token_webapp(resource):
     """Get a MSI token from inside a webapp or functions.
 
     Env variable will look like:
-    MSI_ENDPOINT = http://127.0.0.1:41741/MSI/token/
-    MSI_SECRET = 69418689F1E342DD946CB82994CDA3CB
+
+    - MSI_ENDPOINT = http://127.0.0.1:41741/MSI/token/
+    - MSI_SECRET = 69418689F1E342DD946CB82994CDA3CB
     """
     try:
         msi_endpoint = os.environ['MSI_ENDPOINT']
@@ -643,6 +649,7 @@ class MSIAuthentication(BasicTokenAuthentication):
     """Credentials object for MSI authentication,.
 
     Optional kwargs may include:
+
     - client_id: Identifies, by Azure AD client id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with object_id and msi_res_id.
     - object_id: Identifies, by Azure AD object id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with client_id and msi_res_id.
     - msi_res_id: Identifies, by ARM resource id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with client_id and object_id.
@@ -651,6 +658,8 @@ class MSIAuthentication(BasicTokenAuthentication):
       is 'https://management.core.windows.net/'.
 
     :param int port: MSI local port if VM/VMSS context (ignored otherwise)
+
+    .. versionadded:: 0.4.14
     """
 
     def __init__(self, port=50342, **kwargs):

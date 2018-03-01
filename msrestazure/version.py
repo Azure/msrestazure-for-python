@@ -24,4 +24,5 @@
 #
 # --------------------------------------------------------------------------
 
+#: version of the package. Use msrestazure.__version__ instead.
 msrestazure_version = "0.4.22"

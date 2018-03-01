@@ -36,14 +36,6 @@ msrestazure.azure_operation module
     :undoc-members:
     :show-inheritance:
 
-msrestazure.version module
---------------------------
-
-.. automodule:: msrestazure.version
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 msrestazure.tools module
 --------------------------
 

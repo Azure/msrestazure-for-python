@@ -72,7 +72,6 @@ class AzureConfiguration(Configuration):
 
         :param str filepath: Path to save file to.
         :raises: ValueError if supplied filepath cannot be written to.
-        :rtype: None
         """
         self._config.add_section("Azure")
         self._config.set("Azure",
@@ -85,7 +84,6 @@ class AzureConfiguration(Configuration):
 
         :param str filepath: Path to existing config file.
         :raises: ValueError if supplied config file is invalid.
-        :rtype: None
         """
         try:
             self._config.read(filepath)
