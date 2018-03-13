@@ -495,7 +495,7 @@ class AzureOperationPoller(object):
 
         :param int timeout: Perion of time to wait for the long running
          operation to complete.
-        :raises CloudError: Server problem with the query.
+        :raises ~msrestazure.azure_exceptions.CloudError: Server problem with the query.
         """
         if self._thread is None:
             return

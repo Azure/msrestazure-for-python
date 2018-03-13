@@ -488,52 +488,52 @@ class AdalAuthentication(Authentication):  # pylint: disable=too-few-public-meth
     """A wrapper to use ADAL for Python easily to authenticate on Azure.
 
     .. versionadded:: 0.4.5
+
+    Take an ADAL `acquire_token` method and its parameters.
+
+    :Example:
+
+    .. code:: python
+
+        context = adal.AuthenticationContext('https://login.microsoftonline.com/ABCDEFGH-1234-1234-1234-ABCDEFGHIJKL')
+        RESOURCE = '00000002-0000-0000-c000-000000000000' #AAD graph resource
+        token = context.acquire_token_with_client_credentials(
+            RESOURCE,
+            "http://PythonSDK",
+            "Key-Configured-In-Portal")
+
+    can be written here:
+
+    .. code:: python
+
+        context = adal.AuthenticationContext('https://login.microsoftonline.com/ABCDEFGH-1234-1234-1234-ABCDEFGHIJKL')
+        RESOURCE = '00000002-0000-0000-c000-000000000000' #AAD graph resource
+        credentials = AdalAuthentication(
+            context.acquire_token_with_client_credentials,
+            RESOURCE,
+            "http://PythonSDK",
+            "Key-Configured-In-Portal")
+
+    or using a lambda if you prefer:
+
+    .. code:: python
+
+        context = adal.AuthenticationContext('https://login.microsoftonline.com/ABCDEFGH-1234-1234-1234-ABCDEFGHIJKL')
+        RESOURCE = '00000002-0000-0000-c000-000000000000' #AAD graph resource
+        credentials = AdalAuthentication(
+            lambda: context.acquire_token_with_client_credentials(
+                RESOURCE,
+                "http://PythonSDK",
+                "Key-Configured-In-Portal"
+            )
+        )
+
+    :param callable adal_method: A lambda with no args, or `acquire_token` method with args using args/kwargs
+    :param args: Optional positional args for the method
+    :param kwargs: Optional kwargs for the method
     """
 
     def __init__(self, adal_method, *args, **kwargs):
-        """Take an ADAL `acquire_token` method and its parameters.
-
-        :Example:
-
-        .. code:: python
-
-            context = adal.AuthenticationContext('https://login.microsoftonline.com/ABCDEFGH-1234-1234-1234-ABCDEFGHIJKL')
-            RESOURCE = '00000002-0000-0000-c000-000000000000' #AAD graph resource
-            token = context.acquire_token_with_client_credentials(
-                RESOURCE,
-                "http://PythonSDK",
-                "Key-Configured-In-Portal")
-
-        can be written here:
-
-        .. code:: python
-
-            context = adal.AuthenticationContext('https://login.microsoftonline.com/ABCDEFGH-1234-1234-1234-ABCDEFGHIJKL')
-            RESOURCE = '00000002-0000-0000-c000-000000000000' #AAD graph resource
-            credentials = AdalAuthentication(
-                context.acquire_token_with_client_credentials,
-                RESOURCE,
-                "http://PythonSDK",
-                "Key-Configured-In-Portal")
-
-        or using a lambda if you prefer:
-
-        .. code:: python
-
-            context = adal.AuthenticationContext('https://login.microsoftonline.com/ABCDEFGH-1234-1234-1234-ABCDEFGHIJKL')
-            RESOURCE = '00000002-0000-0000-c000-000000000000' #AAD graph resource
-            credentials = AdalAuthentication(
-                lambda: context.acquire_token_with_client_credentials(
-                    RESOURCE,
-                    "http://PythonSDK",
-                    "Key-Configured-In-Portal"
-                )
-            )
-
-        :param adal_method: A lambda with no args, or `acquire_token` method with args using args/kwargs
-        :param args: Optional args for the method
-        :param kwargs: Optional kwargs for the method
-        """
         self._adal_method = adal_method
         self._args = args
         self._kwargs = kwargs
