@@ -309,6 +309,13 @@ class LongRunningOperation(object):
         if not self.status:
             raise BadResponse("No status found in body")
 
+        # Status can contains information, see ARM spec:
+        # https://github.com/Azure/azure-resource-manager-rpc/blob/master/v1.0/Addendum.md#operation-resource-format
+        # "properties": {
+        # /\* The resource provider can choose the values here, but it should only be
+        #   returned on a successful operation (status being "Succeeded"). \*/
+        #},
+        # So try to parse it
         try:
             self.resource = self.get_outputs(response)
         except Exception:
