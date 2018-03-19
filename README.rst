@@ -20,6 +20,13 @@ To install:
 Release History
 ---------------
 
+2018-03-19 Version 0.4.23
++++++++++++++++++++++++++
+
+**Bugfix**
+
+- Fix LRO result if POST uses AsyncOperation header (Autorest.Python 3.0 only) #79 
+
 2018-02-27 Version 0.4.22
 +++++++++++++++++++++++++
 
