@@ -32,10 +32,10 @@ import uuid
 
 _LOGGER = logging.getLogger(__name__)
 _ARMID_RE = re.compile(
-    '/[sS]ubscriptions/(?P<subscription>[^/]*)(/resource[gG]roups/(?P<resource_group>[^/]*))?'
+    '(?i)/subscriptions/(?P<subscription>[^/]*)(/resourceGroups/(?P<resource_group>[^/]*))?'
     '/providers/(?P<namespace>[^/]*)/(?P<type>[^/]*)/(?P<name>[^/]*)(?P<children>.*)')
 
-_CHILDREN_RE = re.compile('(/providers/(?P<child_namespace>[^/]*))?/'
+_CHILDREN_RE = re.compile('(?i)(/providers/(?P<child_namespace>[^/]*))?/'
                           '(?P<child_type>[^/]*)/(?P<child_name>[^/]*)')
 
 def register_rp_hook(r, *args, **kwargs):

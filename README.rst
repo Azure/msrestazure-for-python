@@ -25,7 +25,7 @@ Release History
 
 **Bugfix**
 
-- Fix parse_resource_id() tool to accept resource_ids with capitalized "subscription" keyword
+- Fix parse_resource_id() tool to be case-insensitive to keywords when matching
 
 2018-03-19 Version 0.4.23
 +++++++++++++++++++++++++
