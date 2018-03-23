@@ -42,7 +42,7 @@ from oauthlib.oauth2.rfc6749.errors import (
     MismatchingStateError,
     OAuth2Error,
     TokenExpiredError)
-from requests import RequestException, ConnectionError
+from requests import RequestException, ConnectionError, HTTPError
 import requests
 import requests_oauthlib as oauth
 
@@ -564,39 +564,6 @@ class AdalAuthentication(Authentication):  # pylint: disable=too-few-public-meth
         return session
 
 
-def get_msi_token(resource, port=50342, msi_conf=None):
-    """Get MSI token from inside a VM/VMSS.
-
-    If msi_conf is used, must be a dict of one key in ["client_id", "object_id", "msi_res_id"]
-
-    :param str resource: The resource where the token would be use.
-    :param int port: The port is not the default 50342 is used.
-    :param dict[str,str] msi_conf: msi_conf if to request a token through a User Assigned Identity (if not specified, assume System Assigned)
-    """
-    request_uri = 'http://localhost:{}/oauth2/token'.format(port)
-    payload = {
-        'resource': resource
-    }
-    if msi_conf:
-        if len(msi_conf) > 1:
-            raise ValueError("{} are mutually exclusive".format(list(msi_conf.keys())))
-        payload.update(msi_conf)
-
-    # retry as the token endpoint might not be available yet, one example is you use CLI in a
-    # custom script extension of VMSS, which might get provisioned before the MSI extensioon
-    # user might want to catch the exception and retry
-    try:
-        result = requests.post(request_uri, data=payload, headers={'Metadata': 'true'})
-        _LOGGER.debug("MSI: Retrieving a token from %s, with payload %s", request_uri, payload)
-        result.raise_for_status()
-    except Exception as ex:  # pylint: disable=broad-except
-        _LOGGER.warning("MSI: Failed to retrieve a token from '%s' with an error of '%s'. This could be caused "
-                        "by the MSI extension not yet fullly provisioned.",
-                        request_uri, ex)
-        raise 
-    token_entry = result.json()
-    return token_entry['token_type'], token_entry['access_token'], token_entry
-
 def get_msi_token_webapp(resource):
     """Get a MSI token from inside a webapp or functions.
 
@@ -665,21 +632,102 @@ class MSIAuthentication(BasicTokenAuthentication):
     def __init__(self, port=50342, **kwargs):
         super(MSIAuthentication, self).__init__(None)
 
-        self.port = port
-        self.msi_conf = {k:v for k,v in kwargs.items() if k in ["client_id", "object_id", "msi_res_id"]}
+        self.port = port  # TODO warn on removing 'port'
 
         self.cloud_environment = kwargs.get('cloud_environment', AZURE_PUBLIC_CLOUD)
         self.resource = kwargs.get('resource', self.cloud_environment.endpoints.active_directory_resource_id)
 
+        msi_conf = {k: v for k, v in kwargs.items() if k in ["client_id", "object_id", "msi_res_id"]}
+        if _is_app_service():
+            _LOGGER.debug('MSI: detected we are in an AppService')
+            if msi_conf:
+                raise AuthenticationError("User Assigned Entity is not available on WebApp yet.")
+        else:
+            self._vm_msi = _MSIImdsTokenProvider(self.resource, msi_conf)
+
     def set_token(self):
         if _is_app_service():
-            if self.msi_conf:
-                raise AuthenticationError("User Assigned Entity is not available on WebApp yet.")
             self.scheme, _, self.token = get_msi_token_webapp(self.resource)
         else:
-            self.scheme, _, self.token = get_msi_token(self.resource, self.port, self.msi_conf)
+            token_entry = self._vm_msi.get_token()
+            self.scheme, self.token = token_entry['token_type'], token_entry
+
+    # make it more usable, to provide token for general purposes
+    def get_token(self):
+        if _is_app_service():
+            _, _, token = get_msi_token_webapp(self.resource)
+        else:
+            token = self._vm_msi.get_token()
+        return token
 
     def signed_session(self):
         # Token cache is handled by the VM extension, call each time to avoid expiration
         self.set_token()
         return super(MSIAuthentication, self).signed_session()
+
+
+class _MSIImdsTokenProvider(object):
+
+    def __init__(self, resource, msi_conf):
+        self.identity_type, self.identity_id = None, None
+        if len(msi_conf.keys()) > 1:
+            raise ValueError('"client_id", "object_id", "msi_res_id" are mutually exclusive')
+        elif len(msi_conf.keys()) == 1:
+            self.identity_type, self.identity_id = next(iter(msi_conf.items()))
+        # default to system assigned identity on an empty configuration object
+
+        self.cache = {}
+        self.resource = resource
+
+    def get_token(self):
+        import datetime
+        # let us hit the cache first
+        token_entry = self.cache.get(self.resource, None)
+        if token_entry:
+            expires_on = int(token_entry['expires_on'])
+            expires_on_datetime = datetime.datetime.fromtimestamp(expires_on)
+            expiration_margin = 5  # in minutes
+            if datetime.datetime.now() + datetime.timedelta(minutes=expiration_margin) <= expires_on_datetime:
+                _LOGGER.info("MSI: token is found in cache.")
+                return token_entry
+            _LOGGER.info("MSI: cache is found but expired within %s minutes, so getting a new one.", expiration_margin)
+            self.cache.pop(self.resource)
+
+        token_entry = self._retrieve_token_from_imds_with_retry()
+        self.cache[self.resource] = token_entry
+        return token_entry
+
+    def _retrieve_token_from_imds_with_retry(self):
+        import random
+        import json
+        request_uri = 'http://169.254.169.254/metadata/identity/oauth2/token'
+        payload = {
+            'resource': self.resource,
+            'api-version': '2018-02-01'
+        }
+        if self.identity_id:
+            payload[self.identity_type] = self.identity_id
+
+        retry, max_retry = 1, 20
+        # simplified version of https://en.wikipedia.org/wiki/Exponential_backoff
+        slots = [100 * ((2 << x) - 1) / 1000 for x in range(max_retry)]
+        while retry <= max_retry:
+            result = requests.get(request_uri, params=payload, headers={'Metadata': 'true'})
+            _LOGGER.debug("MSI: Retrieving a token from %s, with payload %s", request_uri, payload)
+            if result.status_code == 429:
+                wait = random.choice(slots[:retry])
+                _LOGGER.warning("MSI: Wait: %ss and retry: %s", wait, retry)
+                time.sleep(wait)
+                retry += 1
+            elif result.status_code != 200:
+                raise HTTPError(request=result.request, response=result.raw)
+            else:
+                break
+
+        if retry >= max_retry:
+            raise TimeoutError('MSI: Failed to acquire tokens after {} times'.format(max_retry))
+        else:
+            _LOGGER.debug('MSI: Token retrieved')
+
+        token_entry = json.loads(result.content.decode())
+        return token_entry

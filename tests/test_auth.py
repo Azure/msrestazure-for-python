@@ -383,8 +383,8 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             'token_type': "TokenType",
             "access_token": "AccessToken"
         }
-        httpretty.register_uri(httpretty.POST,
-                               'http://localhost:666/oauth2/token',
+        httpretty.register_uri(httpretty.GET,
+                               'http://169.254.169.254/metadata/identity/oauth2/token',
                                body=json.dumps(json_payload),
                                content_type="application/json")
 
@@ -393,8 +393,8 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         assert credentials.scheme == "TokenType"
         assert credentials.token == json_payload
         
-        httpretty.register_uri(httpretty.POST,
-                               'http://localhost:42/oauth2/token',
+        httpretty.register_uri(httpretty.GET,
+                               'http://169.254.169.254/metadata/identity/oauth2/token',
                                status=503,
                                content_type="application/json")
 
