@@ -32,7 +32,7 @@ import uuid
 
 _LOGGER = logging.getLogger(__name__)
 _ARMID_RE = re.compile(
-    '/subscriptions/(?P<subscription>[^/]*)(/resource[gG]roups/(?P<resource_group>[^/]*))?'
+    '/[sS]ubscriptions/(?P<subscription>[^/]*)(/resource[gG]roups/(?P<resource_group>[^/]*))?'
     '/providers/(?P<namespace>[^/]*)/(?P<type>[^/]*)/(?P<name>[^/]*)(?P<children>.*)')
 
 _CHILDREN_RE = re.compile('(/providers/(?P<child_namespace>[^/]*))?/'
@@ -118,6 +118,7 @@ def parse_resource_id(rid):
         - child_namespace_{level}: Namespace for the child resoure of that level
         - child_type_{level}:      Type of the child resource of that level
         - child_name_{level}:      Name of the child resource of that level
+        - last_child_num:          Level of the last child
         - resource_parent:         Computed parent in the following pattern: providers/{namespace}\
         /{parent}/{type}/{name}
         - resource_namespace:      Same as namespace. Note that this may be different than the \

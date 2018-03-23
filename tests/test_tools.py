@@ -335,6 +335,16 @@ class TestTools(unittest.TestCase):
                     'namespace': 'Microsoft.Authorization',
                     'subscription': 'fakesub',
                 }
+            },
+            {
+                'resource_id': '/Subscriptions/fakesub/providers/Microsoft.Authorization'
+                               '/locks/foo',
+                'expected': {
+                    'name': 'foo',
+                    'type': 'locks',
+                    'namespace': 'Microsoft.Authorization',
+                    'subscription': 'fakesub',
+                }
             }
         ]
         for test in tests:
@@ -450,7 +460,7 @@ class TestTools(unittest.TestCase):
         for test in tests:
             rsrc_id = resource_id(**test['id_args'])
             self.assertEqual(rsrc_id.lower(), test['resource_id'].lower())
-        # self.assertTrue(False)
+
 
 if __name__ == "__main__":
     unittest.main()
