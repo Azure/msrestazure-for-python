@@ -20,6 +20,13 @@ To install:
 Release History
 ---------------
 
+2018-xx-xx Version 0.4.24
++++++++++++++++++++++++++
+
+**Bugfix**
+
+- Fix parse_resource_id() tool to accept resource_ids with capitalized "subscription" keyword
+
 2018-03-19 Version 0.4.23
 +++++++++++++++++++++++++
 
