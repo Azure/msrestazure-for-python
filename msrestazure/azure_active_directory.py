@@ -534,6 +534,7 @@ class AdalAuthentication(Authentication):  # pylint: disable=too-few-public-meth
     """
 
     def __init__(self, adal_method, *args, **kwargs):
+        super(AdalAuthentication, self).__init__()
         self._adal_method = adal_method
         self._args = args
         self._kwargs = kwargs
