@@ -624,15 +624,13 @@ class MSIAuthentication(BasicTokenAuthentication):
     - resource (str): Alternative authentication resource, default
       is 'https://management.core.windows.net/'.
 
-    :param int port: MSI local port if VM/VMSS context (ignored otherwise)
-
     .. versionadded:: 0.4.14
     """
 
     def __init__(self, port=50342, **kwargs):
         super(MSIAuthentication, self).__init__(None)
 
-        self.port = port  # TODO warn on removing 'port'
+        _LOGGER.warning("The 'port' argument is no longer used, and will be removed in a future release")
 
         self.cloud_environment = kwargs.get('cloud_environment', AZURE_PUBLIC_CLOUD)
         self.resource = kwargs.get('resource', self.cloud_environment.endpoints.active_directory_resource_id)
@@ -643,7 +641,7 @@ class MSIAuthentication(BasicTokenAuthentication):
             if msi_conf:
                 raise AuthenticationError("User Assigned Entity is not available on WebApp yet.")
         else:
-            self._vm_msi = _MSIImdsTokenProvider(self.resource, msi_conf)
+            self._vm_msi = ImdsTokenProvider(self.resource, msi_conf)
 
     def set_token(self):
         if _is_app_service():
@@ -652,13 +650,13 @@ class MSIAuthentication(BasicTokenAuthentication):
             token_entry = self._vm_msi.get_token()
             self.scheme, self.token = token_entry['token_type'], token_entry
 
-    # make it more usable, to provide token for general purposes
+    # a help method that provides the token for general purposes(not necessary in the http pipeline)
     def get_token(self):
         if _is_app_service():
-            _, _, token = get_msi_token_webapp(self.resource)
+            _, _, token_entry = get_msi_token_webapp(self.resource)
         else:
-            token = self._vm_msi.get_token()
-        return token
+            token_entry = self._vm_msi.get_token()
+        return token_entry
 
     def signed_session(self):
         # Token cache is handled by the VM extension, call each time to avoid expiration
@@ -666,7 +664,8 @@ class MSIAuthentication(BasicTokenAuthentication):
         return super(MSIAuthentication, self).signed_session()
 
 
-class _MSIImdsTokenProvider(object):
+# a help class handling token acquisitions through Azure IMDS plugin
+class ImdsTokenProvider(object):
 
     def __init__(self, resource, msi_conf):
         self.identity_type, self.identity_id = None, None
@@ -700,6 +699,7 @@ class _MSIImdsTokenProvider(object):
     def _retrieve_token_from_imds_with_retry(self):
         import random
         import json
+        # 169.254.169.254 is a well known ip address hosting the web service that provides the Azure IMDS metadata
         request_uri = 'http://169.254.169.254/metadata/identity/oauth2/token'
         payload = {
             'resource': self.resource,
