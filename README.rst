@@ -20,12 +20,13 @@ To install:
 Release History
 ---------------
 
-2018-xx-xx Version 0.4.24
+2018-03-26 Version 0.4.24
 +++++++++++++++++++++++++
 
 **Bugfix**
 
-- Fix parse_resource_id() tool to be case-insensitive to keywords when matching
+- Fix parse_resource_id() tool to be case-insensitive to keywords when matching #81
+- Add missing baseclass init call for AdalAuthentication #82
 
 2018-03-19 Version 0.4.23
 +++++++++++++++++++++++++
