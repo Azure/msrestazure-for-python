@@ -44,7 +44,9 @@ from msrestazure.azure_active_directory import (
     ServicePrincipalCredentials,
     UserPassCredentials,
     AdalAuthentication,
-    MSIAuthentication
+    MSIAuthentication,
+    get_msi_token,
+    get_msi_token_webapp
 )
 from msrest.exceptions import TokenExpiredError, AuthenticationError
 from requests import ConnectionError, HTTPError
@@ -388,20 +390,46 @@ class TestServicePrincipalCredentials(unittest.TestCase):
                                body=json.dumps(json_payload),
                                content_type="application/json")
 
-        credentials = MSIAuthentication(port=666)
+        credentials = MSIAuthentication()
         credentials.set_token()
         assert credentials.scheme == "TokenType"
         assert credentials.token == json_payload
         
+        token_type, access_token, token_entry = get_msi_token("whatever")
+        assert token_type == "TokenType"
+        assert access_token == "AccessToken"
+        assert token_entry == json_payload
+
         httpretty.register_uri(httpretty.GET,
                                'http://169.254.169.254/metadata/identity/oauth2/token',
                                status=503,
                                content_type="application/json")
 
-        credentials = MSIAuthentication(port=42)
+        credentials = MSIAuthentication()
         with self.assertRaises(HTTPError):
             credentials.set_token()
 
+        # WebApp
+
+        json_payload = {
+            'token_type': "TokenType",
+            "access_token": "AccessToken"
+        }
+        httpretty.register_uri(httpretty.GET,
+                               'http://127.0.0.1:41741/MSI/token/?resource=foo&api-version=2017-09-01',
+                               body=json.dumps(json_payload),
+                               content_type="application/json")
+
+        app_service_env = {
+            'APPSETTING_WEBSITE_SITE_NAME': 'Website name',
+            'MSI_ENDPOINT': 'http://127.0.0.1:41741/MSI/token',
+            'MSI_SECRET': '69418689F1E342DD946CB82994CDA3CB'
+        }
+        with unittest.mock.patch.dict('os.environ', app_service_env):
+            token_type, access_token, token_entry = get_msi_token_webapp("foo")
+            assert token_type == "TokenType"
+            assert access_token == "AccessToken"
+            assert token_entry == json_payload
 
 
 if __name__ == '__main__':

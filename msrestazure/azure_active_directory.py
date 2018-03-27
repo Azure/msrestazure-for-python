@@ -563,6 +563,16 @@ class AdalAuthentication(Authentication):  # pylint: disable=too-few-public-meth
         session.headers['Authorization'] = header
         return session
 
+def get_msi_token(resource, port=50342, msi_conf=None):
+    """This mehod is deprecated, use MSIAuthentication instead.
+
+    .. deprecated:: 0.4.25
+    """
+    err_msg = "This method is deprecated and your MSI query has been re-routed to IMDS"
+    warnings.warn(err_msg, DeprecationWarning)
+    provider = _ImdsTokenProvider(resource, msi_conf)
+    token_entry = provider.get_token()
+    return token_entry['token_type'], token_entry['access_token'], token_entry
 
 def get_msi_token_webapp(resource):
     """Get a MSI token from inside a webapp or functions.
@@ -630,18 +640,19 @@ class MSIAuthentication(BasicTokenAuthentication):
     def __init__(self, port=50342, **kwargs):
         super(MSIAuthentication, self).__init__(None)
 
-        _LOGGER.warning("The 'port' argument is no longer used, and will be removed in a future release")
+        if port != 50342:
+            warnings.warn("The 'port' argument is no longer used, and will be removed in a future release", DeprecationWarning)
+
+        self.msi_conf = {k:v for k,v in kwargs.items() if k in ["client_id", "object_id", "msi_res_id"]}
 
         self.cloud_environment = kwargs.get('cloud_environment', AZURE_PUBLIC_CLOUD)
         self.resource = kwargs.get('resource', self.cloud_environment.endpoints.active_directory_resource_id)
 
-        msi_conf = {k: v for k, v in kwargs.items() if k in ["client_id", "object_id", "msi_res_id"]}
         if _is_app_service():
-            _LOGGER.debug('MSI: detected we are in an AppService')
-            if msi_conf:
+            if self.msi_conf:
                 raise AuthenticationError("User Assigned Entity is not available on WebApp yet.")
         else:
-            self._vm_msi = ImdsTokenProvider(self.resource, msi_conf)
+            self._vm_msi = _ImdsTokenProvider(self.resource, self.msi_conf)
 
     def set_token(self):
         if _is_app_service():
@@ -650,29 +661,23 @@ class MSIAuthentication(BasicTokenAuthentication):
             token_entry = self._vm_msi.get_token()
             self.scheme, self.token = token_entry['token_type'], token_entry
 
-    # a help method that provides the token for general purposes(not necessary in the http pipeline)
-    def get_token(self):
-        if _is_app_service():
-            _, _, token_entry = get_msi_token_webapp(self.resource)
-        else:
-            token_entry = self._vm_msi.get_token()
-        return token_entry
-
     def signed_session(self):
         # Token cache is handled by the VM extension, call each time to avoid expiration
         self.set_token()
         return super(MSIAuthentication, self).signed_session()
 
 
-# a help class handling token acquisitions through Azure IMDS plugin
-class ImdsTokenProvider(object):
+class _ImdsTokenProvider(object):
+    """A help class handling token acquisitions through Azure IMDS plugin.
+    """
 
-    def __init__(self, resource, msi_conf):
+    def __init__(self, resource, msi_conf=None):
         self.identity_type, self.identity_id = None, None
-        if len(msi_conf.keys()) > 1:
-            raise ValueError('"client_id", "object_id", "msi_res_id" are mutually exclusive')
-        elif len(msi_conf.keys()) == 1:
-            self.identity_type, self.identity_id = next(iter(msi_conf.items()))
+        if msi_conf:
+            if len(msi_conf.keys()) > 1:
+                raise ValueError('"client_id", "object_id", "msi_res_id" are mutually exclusive')
+            elif len(msi_conf.keys()) == 1:
+                self.identity_type, self.identity_id = next(iter(msi_conf.items()))
         # default to system assigned identity on an empty configuration object
 
         self.cache = {}
