@@ -57,6 +57,7 @@ from msrest.exceptions import TokenExpiredError as Expired
 from msrest.exceptions import AuthenticationError, raise_with_traceback
 
 from msrestazure.azure_cloud import AZURE_CHINA_CLOUD, AZURE_PUBLIC_CLOUD
+from msrestazure.azure_configuration import AzureConfiguration
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -700,6 +701,7 @@ class _ImdsTokenProvider(object):
     """
 
     def __init__(self, resource, msi_conf=None):
+        self._user_agent = AzureConfiguration(None).user_agent
         self.identity_type, self.identity_id = None, None
         if msi_conf:
             if len(msi_conf.keys()) > 1:
@@ -745,7 +747,7 @@ class _ImdsTokenProvider(object):
         # simplified version of https://en.wikipedia.org/wiki/Exponential_backoff
         slots = [100 * ((2 << x) - 1) / 1000 for x in range(max_retry)]
         while retry <= max_retry:
-            result = requests.get(request_uri, params=payload, headers={'Metadata': 'true'})
+            result = requests.get(request_uri, params=payload, headers={'Metadata': 'true', 'User-Agent':self._user_agent})
             _LOGGER.debug("MSI: Retrieving a token from %s, with payload %s", request_uri, payload)
             if result.status_code == 429:
                 wait = random.choice(slots[:retry])
