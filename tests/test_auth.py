@@ -416,7 +416,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
                                body=json.dumps(json_payload),
                                content_type="application/json")
 
-        with unittest.mock.patch('os.environ', {'MSI_ENDPOINT': 'http://random.org/yadadada'}):
+        with mock.patch('os.environ', {'MSI_ENDPOINT': 'http://random.org/yadadada'}):
             token_type, access_token, token_entry = get_msi_token("whatever")
             assert token_type == "TokenType"
             assert access_token == "AccessToken"
@@ -449,7 +449,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
                                body=json.dumps(json_payload),
                                content_type="application/json")
 
-        with unittest.mock.patch('os.environ', {'MSI_ENDPOINT': 'http://random.org/yadadada'}):
+        with mock.patch('os.environ', {'MSI_ENDPOINT': 'http://random.org/yadadada'}):
             credentials = MSIAuthentication()
             credentials.set_token()
             assert credentials.scheme == "TokenTypeMSI_ENDPOINT"
@@ -471,7 +471,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             'MSI_ENDPOINT': 'http://127.0.0.1:41741/MSI/token',
             'MSI_SECRET': '69418689F1E342DD946CB82994CDA3CB'
         }
-        with unittest.mock.patch.dict('os.environ', app_service_env):
+        with mock.patch.dict('os.environ', app_service_env):
             credentials = MSIAuthentication(resource="foo")
             credentials.set_token()
             assert credentials.scheme == "TokenTypeWebApp"
