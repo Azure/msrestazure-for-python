@@ -381,8 +381,51 @@ class TestServicePrincipalCredentials(unittest.TestCase):
     @httpretty.activate
     def test_msi_vm(self):
 
+        # Test legacy MSI, with no MSI_ENDPOINT
+
         json_payload = {
             'token_type': "TokenType",
+            "access_token": "AccessToken"
+        }
+        httpretty.register_uri(httpretty.POST,
+                               'http://localhost:666/oauth2/token',
+                               body=json.dumps(json_payload),
+                               content_type="application/json")
+
+        token_type, access_token, token_entry = get_msi_token("whatever", port=666)
+        assert token_type == "TokenType"
+        assert access_token == "AccessToken"
+        assert token_entry == json_payload
+        
+        httpretty.register_uri(httpretty.POST,
+                               'http://localhost:42/oauth2/token',
+                               status=503,
+                               content_type="application/json")
+
+        with self.assertRaises(HTTPError):
+            get_msi_token("whatever", port=42)
+
+        # Test MSI_ENDPOINT
+
+        json_payload = {
+            'token_type': "TokenType",
+            "access_token": "AccessToken"
+        }
+        httpretty.register_uri(httpretty.POST,
+                               'http://random.org/yadadada',
+                               body=json.dumps(json_payload),
+                               content_type="application/json")
+
+        with unittest.mock.patch('os.environ', {'MSI_ENDPOINT': 'http://random.org/yadadada'}):
+            token_type, access_token, token_entry = get_msi_token("whatever")
+            assert token_type == "TokenType"
+            assert access_token == "AccessToken"
+            assert token_entry == json_payload
+
+        # Test MSIAuthentication with no MSI_ENDPOINT and no APPSETTING_WEBSITE_SITE_NAME is IMDS
+
+        json_payload = {
+            'token_type': "TokenTypeIMDS",
             "access_token": "AccessToken"
         }
         httpretty.register_uri(httpretty.GET,
@@ -392,27 +435,30 @@ class TestServicePrincipalCredentials(unittest.TestCase):
 
         credentials = MSIAuthentication()
         credentials.set_token()
-        assert credentials.scheme == "TokenType"
+        assert credentials.scheme == "TokenTypeIMDS"
         assert credentials.token == json_payload
         
-        token_type, access_token, token_entry = get_msi_token("whatever")
-        assert token_type == "TokenType"
-        assert access_token == "AccessToken"
-        assert token_entry == json_payload
+        # Test MSIAuthentication with MSI_ENDPOINT and no APPSETTING_WEBSITE_SITE_NAME is MSI_ENDPOINT
 
-        httpretty.register_uri(httpretty.GET,
-                               'http://169.254.169.254/metadata/identity/oauth2/token',
-                               status=503,
+        json_payload = {
+            'token_type': "TokenTypeMSI_ENDPOINT",
+            "access_token": "AccessToken"
+        }
+        httpretty.register_uri(httpretty.POST,
+                               'http://random.org/yadadada',
+                               body=json.dumps(json_payload),
                                content_type="application/json")
 
-        credentials = MSIAuthentication()
-        with self.assertRaises(HTTPError):
+        with unittest.mock.patch('os.environ', {'MSI_ENDPOINT': 'http://random.org/yadadada'}):
+            credentials = MSIAuthentication()
             credentials.set_token()
+            assert credentials.scheme == "TokenTypeMSI_ENDPOINT"
+            assert credentials.token == json_payload
 
         # WebApp
 
         json_payload = {
-            'token_type': "TokenType",
+            'token_type': "TokenTypeWebApp",
             "access_token": "AccessToken"
         }
         httpretty.register_uri(httpretty.GET,
@@ -426,10 +472,10 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             'MSI_SECRET': '69418689F1E342DD946CB82994CDA3CB'
         }
         with unittest.mock.patch.dict('os.environ', app_service_env):
-            token_type, access_token, token_entry = get_msi_token_webapp("foo")
-            assert token_type == "TokenType"
-            assert access_token == "AccessToken"
-            assert token_entry == json_payload
+            credentials = MSIAuthentication(resource="foo")
+            credentials.set_token()
+            assert credentials.scheme == "TokenTypeWebApp"
+            assert credentials.token == json_payload
 
 
 if __name__ == '__main__':

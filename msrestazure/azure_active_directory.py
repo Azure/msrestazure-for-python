@@ -564,14 +564,38 @@ class AdalAuthentication(Authentication):  # pylint: disable=too-few-public-meth
         return session
 
 def get_msi_token(resource, port=50342, msi_conf=None):
-    """This mehod is deprecated, use MSIAuthentication instead.
+    """Get MSI token if MSI_ENDPOINT is set.
 
-    .. deprecated:: 0.4.25
+    IF MSI_ENDPOINT is not set, will try legacy access through 'http://localhost:{}/oauth2/token'.format(port).
+
+    If msi_conf is used, must be a dict of one key in ["client_id", "object_id", "msi_res_id"]
+
+    :param str resource: The resource where the token would be use.
+    :param int port: The port if not the default 50342 is used. Ignored if MSI_ENDPOINT is set.
+    :param dict[str,str] msi_conf: msi_conf if to request a token through a User Assigned Identity (if not specified, assume System Assigned)
     """
-    err_msg = "This method is deprecated and your MSI query has been re-routed to IMDS"
-    warnings.warn(err_msg, DeprecationWarning)
-    provider = _ImdsTokenProvider(resource, msi_conf)
-    token_entry = provider.get_token()
+    request_uri = os.environ.get("MSI_ENDPOINT", 'http://localhost:{}/oauth2/token'.format(port))
+    payload = {
+        'resource': resource
+    }
+    if msi_conf:
+        if len(msi_conf) > 1:
+            raise ValueError("{} are mutually exclusive".format(list(msi_conf.keys())))
+        payload.update(msi_conf)
+
+    # retry as the token endpoint might not be available yet, one example is you use CLI in a
+    # custom script extension of VMSS, which might get provisioned before the MSI extensioon
+    # user might want to catch the exception and retry
+    try:
+        result = requests.post(request_uri, data=payload, headers={'Metadata': 'true'})
+        _LOGGER.debug("MSI: Retrieving a token from %s, with payload %s", request_uri, payload)
+        result.raise_for_status()
+    except Exception as ex:  # pylint: disable=broad-except
+        _LOGGER.warning("MSI: Failed to retrieve a token from '%s' with an error of '%s'. This could be caused "
+                        "by the MSI extension not yet fullly provisioned.",
+                        request_uri, ex)
+        raise 
+    token_entry = result.json()
     return token_entry['token_type'], token_entry['access_token'], token_entry
 
 def get_msi_token_webapp(resource):
@@ -642,6 +666,7 @@ class MSIAuthentication(BasicTokenAuthentication):
 
         if port != 50342:
             warnings.warn("The 'port' argument is no longer used, and will be removed in a future release", DeprecationWarning)
+        self.port = port
 
         self.msi_conf = {k:v for k,v in kwargs.items() if k in ["client_id", "object_id", "msi_res_id"]}
 
@@ -651,12 +676,15 @@ class MSIAuthentication(BasicTokenAuthentication):
         if _is_app_service():
             if self.msi_conf:
                 raise AuthenticationError("User Assigned Entity is not available on WebApp yet.")
-        else:
+        elif "MSI_ENDPOINT" not in os.environ:
+            # Use IMDS if no MSI_ENDPOINT
             self._vm_msi = _ImdsTokenProvider(self.resource, self.msi_conf)
 
     def set_token(self):
         if _is_app_service():
             self.scheme, _, self.token = get_msi_token_webapp(self.resource)
+        elif "MSI_ENDPOINT" in os.environ:
+            self.scheme, _, self.token = get_msi_token(self.resource, self.port, self.msi_conf)
         else:
             token_entry = self._vm_msi.get_token()
             self.scheme, self.token = token_entry['token_type'], token_entry
