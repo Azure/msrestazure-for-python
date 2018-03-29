@@ -20,6 +20,14 @@ To install:
 Release History
 ---------------
 
+2018-03-29 Version 0.4.25
++++++++++++++++++++++++++
+
+**Features**
+
+- MSIAuthentication now uses IMDS endpoint if available
+- MSIAuthentication can be used in any environment that defines MSI_ENDPOINT env variable
+
 2018-03-26 Version 0.4.24
 +++++++++++++++++++++++++
 
