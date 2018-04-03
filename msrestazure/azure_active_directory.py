@@ -760,7 +760,7 @@ class _ImdsTokenProvider(object):
             else:
                 break
 
-        if retry >= max_retry:
+        if retry > max_retry:
             raise TimeoutError('MSI: Failed to acquire tokens after {} times'.format(max_retry))
 
         _LOGGER.debug('MSI: Token retrieved')
