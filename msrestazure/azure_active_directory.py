@@ -585,9 +585,6 @@ def get_msi_token(resource, port=50342, msi_conf=None):
             raise ValueError("{} are mutually exclusive".format(list(msi_conf.keys())))
         payload.update(msi_conf)
 
-    # retry as the token endpoint might not be available yet, one example is you use CLI in a
-    # custom script extension of VMSS, which might get provisioned before the MSI extensioon
-    # user might want to catch the exception and retry
     try:
         result = requests.post(request_uri, data=payload, headers={'Metadata': 'true'})
         _LOGGER.debug("MSI: Retrieving a token from %s, with payload %s", request_uri, payload)
