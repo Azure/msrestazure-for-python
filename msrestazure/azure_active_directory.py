@@ -747,7 +747,7 @@ class _ImdsTokenProvider(object):
         while retry <= max_retry:
             result = requests.get(request_uri, params=payload, headers={'Metadata': 'true', 'User-Agent':self._user_agent})
             _LOGGER.debug("MSI: Retrieving a token from %s, with payload %s", request_uri, payload)
-            if result.status_code == 429:
+            if result.status_code in [404, 429] or (499 < result.status_code < 600):
                 wait = random.choice(slots[:retry])
                 _LOGGER.warning("MSI: Wait: %ss and retry: %s", wait, retry)
                 time.sleep(wait)
