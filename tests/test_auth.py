@@ -32,6 +32,7 @@ try:
 except ImportError:
     import mock
 
+from requests import HTTPError
 from requests_oauthlib import OAuth2Session
 import oauthlib
 import adal
@@ -476,6 +477,43 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             credentials.set_token()
             assert credentials.scheme == "TokenTypeWebApp"
             assert credentials.token == json_payload
+
+
+    @httpretty.activate
+    def test_msi_vm_imds_retry(self):
+ 
+        json_payload = {
+            'token_type': "TokenTypeIMDS",
+            "access_token": "AccessToken"
+        }
+        httpretty.register_uri(httpretty.GET,
+                               'http://169.254.169.254/metadata/identity/oauth2/token',
+                               status=404)
+        httpretty.register_uri(httpretty.GET,
+                               'http://169.254.169.254/metadata/identity/oauth2/token',
+                               status=429)
+        httpretty.register_uri(httpretty.GET,
+                               'http://169.254.169.254/metadata/identity/oauth2/token',
+                               status=599)
+        httpretty.register_uri(httpretty.GET,
+                               'http://169.254.169.254/metadata/identity/oauth2/token',
+                               body=json.dumps(json_payload),
+                               content_type="application/json")
+        credentials = MSIAuthentication()
+        credentials.set_token()
+        assert credentials.scheme == "TokenTypeIMDS"
+        assert credentials.token == json_payload
+
+
+    @httpretty.activate
+    def test_msi_vm_imds_no_retry_on_bad_error(self):
+ 
+        httpretty.register_uri(httpretty.GET,
+                               'http://169.254.169.254/metadata/identity/oauth2/token',
+                               status=499)
+        credentials = MSIAuthentication()
+        with self.assertRaises(HTTPError) as cm:
+            credentials.set_token()
 
 
 if __name__ == '__main__':
