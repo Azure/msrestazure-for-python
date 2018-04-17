@@ -20,6 +20,14 @@ To install:
 Release History
 ---------------
 
+2018-04-17 Version 0.4.26
++++++++++++++++++++++++++
+
+**Bugfixes**
+
+- IMDS/MSI: Retry on more error codes (#87)
+- IMDS/MSI: fix a boundary case on timeout (#86)
+
 2018-03-29 Version 0.4.25
 +++++++++++++++++++++++++
 
