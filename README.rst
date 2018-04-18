@@ -20,6 +20,15 @@ To install:
 Release History
 ---------------
 
+2018-04-18 Version 0.4.27
++++++++++++++++++++++++++
+
+**Features**
+
+- Implements new features of msrest 0.4.28 on session improvement. See msrest ChangeLog for details.
+
+Update msrest dependency to 0.4.28
+
 2018-04-17 Version 0.4.26
 +++++++++++++++++++++++++
 
