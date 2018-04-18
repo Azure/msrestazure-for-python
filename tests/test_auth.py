@@ -194,27 +194,6 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         with self.assertRaises(TokenExpiredError):
             ServicePrincipalCredentials.retrieve_session("client_id")
 
-    @mock.patch('msrestazure.azure_active_directory.oauth')
-    def test_credentials_signed_session(self, mock_requests):
-
-        creds = mock.create_autospec(ServicePrincipalCredentials)
-        creds._parse_token = lambda: AADMixin._parse_token(creds)
-        creds.id = 'client_id'
-        creds.token_uri = "token_uri"
-        creds.resource = "resource"
-
-        creds.token = {'expires_at':'1',
-                       'expires_in':'2',
-                       'refresh_token':"test"}
-
-        AADMixin.signed_session(creds)
-        mock_requests.OAuth2Session.assert_called_with(
-            'client_id',
-            token=creds.token,
-            auto_refresh_url='token_uri',
-            auto_refresh_kwargs={'client_id':'client_id', 'resource':'resource'},
-            token_updater=creds._default_token_cache)
-
     def test_service_principal(self):
 
         creds = mock.create_autospec(ServicePrincipalCredentials)
