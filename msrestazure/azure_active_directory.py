@@ -62,7 +62,7 @@ from msrestazure.azure_configuration import AzureConfiguration
 _LOGGER = logging.getLogger(__name__)
 
 if not keyring:
-    _LOGGER.warning("Cannot load keyring on your system: %s", KEYRING_EXCEPTION)
+    _LOGGER.warning("Cannot load 'keyring' on your system (either not installed, or not configured correctly): %s", KEYRING_EXCEPTION)
 
 def _build_url(uri, paths, scheme):
     """Combine URL parts.
