@@ -136,10 +136,12 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             str({'token_type':'1', 'access_token':'2'}))
 
     @unittest.skipIf(sys.version_info < (3,4), "assertLogs not supported before 3.4")
-    @mock.patch('msrestazure.azure_active_directory.keyring.set_password')
+    @mock.patch('msrestazure.azure_active_directory.keyring')
     def test_store_token_boom(self, mock_keyring):
 
-        mock_keyring.side_effect = Exception('Boom!')
+        def boom(*args, **kwargs):
+            raise Exception("Boom!")
+        mock_keyring.set_password = boom
 
         mix = AADMixin(None, None)
         mix.cred_store = "store_name"

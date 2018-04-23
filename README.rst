@@ -20,6 +20,16 @@ To install:
 Release History
 ---------------
 
+2018-04-23 Version 0.4.28
++++++++++++++++++++++++++
+
+**Disclaimer**
+
+Do to some stability issues with "keyring" dependency that highly change from one system to another,
+this package is no longer a dependency of "msrestazure".
+If you were using the secured token cache of `ServicePrincipalCredentials` and `UserPassCredentials`, 
+the feature is still available, but you need to install manually "keyring". The functionnality will activate automatically.
+
 2018-04-18 Version 0.4.27
 +++++++++++++++++++++++++
 
