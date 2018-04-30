@@ -20,6 +20,15 @@ To install:
 Release History
 ---------------
 
+2018-04-30 Version 0.4.29
++++++++++++++++++++++++++
+
+**Bugfixes**
+
+- Fix refresh Token on `AADTokenCredentials` (was broken in 0.4.27)
+- Now `UserPasswordCredentials` correctly use the refreshToken, and not user/password to refresh the session (was broken in 0.4.27)
+- Bring back `keyring`, with minimal dependency 12.0.2 that fixes the installation problem on old Python
+
 2018-04-23 Version 0.4.28
 +++++++++++++++++++++++++
 
