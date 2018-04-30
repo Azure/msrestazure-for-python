@@ -186,11 +186,18 @@ class AADMixin(OAuthTokenAuthentication):
         :param dict token: An authentication token.
         :rtype: dict
         """
+        # If it's from ADAL, expiresOn will be in ISO form.
+        # Bring it back to float, using expiresIn
+        if "expiresOn" in token and "expiresIn" in token:
+            token["expiresOn"] = token['expiresIn'] + time.time()
         return {self._case.sub(r'\1_\2', k).lower(): v
                 for k, v in token.items()}
 
     def _parse_token(self):
-        # TODO: We could also check expires_on and use to update expires_in
+        # AD answers 'expires_on', and Python oauthlib expects 'expires_at'
+        if 'expires_on' in self.token and 'expires_at' not in self.token:
+            self.token['expires_at'] = self.token['expires_on']
+        
         if self.token.get('expires_at'):
             countdown = float(self.token['expires_at']) - time.time()
             self.token['expires_in'] = countdown
@@ -233,7 +240,42 @@ class AADMixin(OAuthTokenAuthentication):
         """
         self._parse_token()
         return super(AADMixin, self).signed_session(session)
-            
+
+    def _setup_session(self):
+        """Create token-friendly Requests session.
+
+        :rtype: requests_oauthlib.OAuth2Session
+        """
+        return oauth.OAuth2Session(client=self.client)
+
+    def refresh_session(self, session=None):
+        """Return updated session if token has expired, attempts to
+        refresh using newly acquired token.
+
+        If a session object is provided, configure it directly. Otherwise,
+        create a new session and return it.
+
+        :param session: The session to configure for authentication
+        :type session: requests.Session
+        :rtype: requests.Session.
+        """
+        if 'refresh_token' in self.token:
+            with self._setup_session() as session:
+                try:
+                    token = session.refresh_token(self.token_uri,
+                                                  refresh_token=self.token['refresh_token'],
+                                                  verify=self.verify,
+                                                  proxies=self.proxies,
+                                                  timeout=self.timeout)
+                except (RequestException, OAuth2Error, InvalidGrantError) as err:
+                    raise_with_traceback(AuthenticationError, "", err)
+
+                self.token = token
+                self._default_token_cache(self.token)
+        else:
+            self.set_token()
+        return self.signed_session(session)
+
     def clear_cached_token(self):
         """Clear any stored tokens.
 
@@ -276,6 +318,7 @@ class AADTokenCredentials(AADMixin):
             client_id = '04b07795-8ddb-461a-bbee-02f9e1bf7b46'
         super(AADTokenCredentials, self).__init__(client_id, None)
         self._configure(**kwargs)
+        self.client = None
         if not kwargs.get('cached'):
             self.token = self._convert_token(token)
             self.signed_session()
@@ -348,12 +391,6 @@ class UserPassCredentials(AADMixin):
         session._retrieve_stored_token()
         return session
 
-    def _setup_session(self):
-        """Create token-friendly Requests session.
-
-        :rtype: requests_oauthlib.OAuth2Session
-        """
-        return oauth.OAuth2Session(client=self.client)
 
     def set_token(self):
         """Get token using Username/Password credentials.
@@ -379,38 +416,6 @@ class UserPassCredentials(AADMixin):
 
             self.token = token
             self._default_token_cache(self.token)
-
-    def refresh_session(self, session=None):
-        """Return updated session if token has expired, attempts to
-        refresh using newly acquired token.
-
-        If a session object is provided, configure it directly. Otherwise,
-        create a new session and return it.
-
-        :param session: The session to configure for authentication
-        :type session: requests.Session
-        :rtype: requests.Session.
-        """
-        with self._setup_session() as session:
-            optional = {}
-            if self.secret:
-                optional['client_secret'] = self.secret
-            try:
-                token = session.refresh_token(self.token_uri,
-                                              client_id=self.id,
-                                              username=self.username,
-                                              password=self.password,
-                                              resource=self.resource,
-                                              verify=self.verify,
-                                              proxies=self.proxies,
-                                              timeout=self.timeout,
-                                              **optional)
-            except (RequestException, OAuth2Error, InvalidGrantError) as err:
-                raise_with_traceback(AuthenticationError, "", err)
-
-            self.token = token
-            self._default_token_cache(self.token)
-        return self.signed_session(session)
 
 
 class ServicePrincipalCredentials(AADMixin):
@@ -456,13 +461,6 @@ class ServicePrincipalCredentials(AADMixin):
         session._retrieve_stored_token()
         return session
 
-    def _setup_session(self):
-        """Create token-friendly Requests session.
-
-        :rtype: requests_oauthlib.OAuth2Session
-        """
-        return oauth.OAuth2Session(self.id, client=self.client)
-
     def set_token(self):
         """Get token using Client ID/Secret credentials.
 
@@ -482,24 +480,7 @@ class ServicePrincipalCredentials(AADMixin):
                 raise_with_traceback(AuthenticationError, "", err)
             else:
                 self.token = token
-                self._default_token_cache(self.token)
-
-    def refresh_session(self, session=None):
-        """Alias to signed_session().
-
-        SP flow does not contain refresh_token, so this method is just asking a new
-        token to AD.
-
-        If a session object is provided, configure it directly. Otherwise,
-        create a new session and return it.
-
-        :param session: The session to configure for authentication
-        :type session: requests.Session
-        :rtype: requests.Session.
-        """
-        self.set_token()
-        return self.signed_session(session)
-                
+                self._default_token_cache(self.token)                
 
 # For backward compatibility of import, but I doubt someone uses that...
 class InteractiveCredentials(object):
