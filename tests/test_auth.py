@@ -511,13 +511,14 @@ def test_refresh_userpassword_no_common_session(user_password):
 
     response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
     response.raise_for_status() # Should never raise
-
-    # Hacking the token time
-    creds.token['expires_on'] = time.time() - 10
-    creds.token['expires_at'] = creds.token['expires_on']
     
     try:
         session = creds.signed_session()
+        # Hacking the token time
+        session.auth._client.token['expires_in'] = session.auth._client.expires_in = -10
+        session.auth._client.token['expires_on'] = session.auth._client.expires_on = time.time() -10
+        session.auth._client.token['expires_at'] = session.auth._client.expires_at = session.auth._client._expires_at = session.auth._client.expires_on
+
         response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
         pytest.fail("Requests should have failed")
     except oauthlib.oauth2.rfc6749.errors.TokenExpiredError:
@@ -537,13 +538,14 @@ def test_refresh_userpassword_common_session(user_password):
 
     response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
     response.raise_for_status() # Should never raise
-
-    # Hacking the token time
-    creds.token['expires_on'] = time.time() - 10
-    creds.token['expires_at'] = creds.token['expires_on']
     
     try:
         session = creds.signed_session(root_session)
+        # Hacking the token time
+        session.auth._client.token['expires_in'] = session.auth._client.expires_in = -10
+        session.auth._client.token['expires_on'] = session.auth._client.expires_on = time.time() -10
+        session.auth._client.token['expires_at'] = session.auth._client.expires_at = session.auth._client._expires_at = session.auth._client.expires_on
+
         response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
         pytest.fail("Requests should have failed")
     except oauthlib.oauth2.rfc6749.errors.TokenExpiredError:
