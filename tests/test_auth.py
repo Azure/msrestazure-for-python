@@ -140,6 +140,69 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             ServicePrincipalCredentials.retrieve_session("client_id")
 
     @mock.patch("adal.AuthenticationContext")
+    def test_property(self, adal_context):
+
+        adal_context.acquire_token_with_client_credentials = mock.Mock()
+
+        creds = ServicePrincipalCredentials(
+            123,
+            'secret',
+            tenant="private"
+        )  # Implicit set_token call
+
+        adal_context.assert_called_with(
+            "https://login.microsoftonline.com/private",
+            timeout=None,
+            verify_ssl=None,
+            proxies=None,
+            api_version=None
+        )
+
+        creds.timeout = 12
+        assert creds._context is None
+        creds.set_token()
+        adal_context.assert_called_with(
+            "https://login.microsoftonline.com/private",
+            timeout=12,
+            verify_ssl=None,
+            proxies=None,
+            api_version=None
+        )
+
+        creds.verify = True
+        assert creds._context is None
+        creds.set_token()
+        adal_context.assert_called_with(
+            "https://login.microsoftonline.com/private",
+            timeout=12,
+            verify_ssl=True,
+            proxies=None,
+            api_version=None
+        )
+
+        creds.proxies = {}
+        assert creds._context is None
+        creds.set_token()
+        adal_context.assert_called_with(
+            "https://login.microsoftonline.com/private",
+            timeout=12,
+            verify_ssl=True,
+            proxies={},
+            api_version=None
+        )
+
+        creds.cloud_environment = AZURE_CHINA_CLOUD
+        assert creds._context is None
+        creds.set_token()
+        adal_context.assert_called_with(
+            "https://login.chinacloudapi.cn/private",
+            timeout=12,
+            verify_ssl=True,
+            proxies={},
+            api_version=None
+        )
+
+    @mock.patch("adal.AuthenticationContext")
     def test_service_principal(self, adal_context):
 
         adal_context.acquire_token_with_client_credentials = mock.Mock()
@@ -183,7 +246,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             'secret',
             tenant="private"
         )
-        
+
         adal_context.assert_called_with(
             "https://login.microsoftonline.com/private",
             timeout=None,
@@ -412,7 +475,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         assert token_type == "TokenType"
         assert access_token == "AccessToken"
         assert token_entry == json_payload
-        
+
         httpretty.register_uri(httpretty.POST,
                                'http://localhost:42/oauth2/token',
                                status=503,
@@ -453,7 +516,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         credentials.set_token()
         assert credentials.scheme == "TokenTypeIMDS"
         assert credentials.token == json_payload
-        
+
         # Test MSIAuthentication with MSI_ENDPOINT and no APPSETTING_WEBSITE_SITE_NAME is MSI_ENDPOINT
 
         json_payload = {
@@ -496,7 +559,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
 
     @httpretty.activate
     def test_msi_vm_imds_retry(self):
- 
+
         json_payload = {
             'token_type': "TokenTypeIMDS",
             "access_token": "AccessToken"
@@ -522,7 +585,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
 
     @httpretty.activate
     def test_msi_vm_imds_no_retry_on_bad_error(self):
- 
+
         httpretty.register_uri(httpretty.GET,
                                'http://169.254.169.254/metadata/identity/oauth2/token',
                                status=499)
@@ -542,7 +605,7 @@ def test_refresh_userpassword_no_common_session(user_password):
 
     response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
     response.raise_for_status() # Should never raise
-    
+
     try:
         session = creds.signed_session()
         # Hacking the token time
@@ -569,7 +632,7 @@ def test_refresh_userpassword_common_session(user_password):
 
     response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
     response.raise_for_status() # Should never raise
-    
+
     try:
         session = creds.signed_session(root_session)
         # Hacking the token time
@@ -606,7 +669,7 @@ def test_refresh_aadtokencredentials_no_common_session(user_password):
     # Hacking the token time
     creds.token['expires_on'] = time.time() - 10
     creds.token['expires_at'] = creds.token['expires_on']
-    
+
     try:
         session = creds.signed_session()
         response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
@@ -640,7 +703,7 @@ def test_refresh_aadtokencredentials_common_session(user_password):
     # Hacking the token time
     creds.token['expires_on'] = time.time() - 10
     creds.token['expires_at'] = creds.token['expires_on']
-    
+
     try:
         session = creds.signed_session(root_session)
         response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")

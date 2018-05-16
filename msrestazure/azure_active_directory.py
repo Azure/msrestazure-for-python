@@ -64,7 +64,6 @@ class AADMixin(OAuthTokenAuthentication):
     - Token caching and retrieval
     - Default AAD configuration
     """
-    _tenant = "common"
     _keyring = "AzureAAD"
     _case = re.compile('([a-z0-9])([A-Z])')
 
@@ -90,29 +89,74 @@ class AADMixin(OAuthTokenAuthentication):
                        "please use "
                        "cloud_environment=msrestazure.azure_cloud.AZURE_CHINA_CLOUD")
             warnings.warn(err_msg, DeprecationWarning)
-            self.cloud_environment = AZURE_CHINA_CLOUD
+            self._cloud_environment = AZURE_CHINA_CLOUD
         else:
-            self.cloud_environment = AZURE_PUBLIC_CLOUD
-        self.cloud_environment = kwargs.get('cloud_environment', self.cloud_environment)
+            self._cloud_environment = AZURE_PUBLIC_CLOUD
+        self._cloud_environment = kwargs.get('cloud_environment', self._cloud_environment)
 
-        auth_endpoint = self.cloud_environment.endpoints.active_directory
-        resource = self.cloud_environment.endpoints.active_directory_resource_id
+        auth_endpoint = self._cloud_environment.endpoints.active_directory
+        resource = self._cloud_environment.endpoints.active_directory_resource_id
 
-        tenant = kwargs.get('tenant', self._tenant)
+        self._tenant = kwargs.get('tenant', "common")
+        self._verify = kwargs.get('verify')  # 'None' will honor ADAL_PYTHON_SSL_NO_VERIFY
         self.cred_store = kwargs.get('keyring', self._keyring)
         self.resource = kwargs.get('resource', resource)
+        self._proxies = kwargs.get('proxies')
+        self._timeout = kwargs.get('timeout')
         self.store_key = "{}_{}".format(
             auth_endpoint.strip('/'), self.store_key)
         self.secret = None
+        self._context = None  # Future ADAL context
 
-        # Adal
+    def _create_adal_context(self):
+        auth_endpoint = self.cloud_environment.endpoints.active_directory
+
         self._context = adal.AuthenticationContext(
-            auth_endpoint + '/' + tenant,
-            timeout=kwargs.get('timeout'),
-            verify_ssl=kwargs.get('verify'),  # None will honor ADAL_PYTHON_SSL_NO_VERIFY
-            proxies=kwargs.get('proxies'),
+            auth_endpoint + '/' + self._tenant,
+            timeout=self._timeout,
+            verify_ssl=self._verify,
+            proxies=self._proxies,
             api_version=None
         )
+
+    def _destroy_adal_context(self):
+        self._context = None
+
+    @property
+    def verify(self):
+        return self._verify
+
+    @verify.setter
+    def verify(self, value):
+        self._verify = value
+        self._destroy_adal_context()
+
+    @property
+    def proxies(self):
+        return self._proxies
+
+    @proxies.setter
+    def proxies(self, value):
+        self._proxies = value
+        self._destroy_adal_context()
+
+    @property
+    def timeout(self):
+        return self._timeout
+
+    @timeout.setter
+    def timeout(self, value):
+        self._timeout = value
+        self._destroy_adal_context()
+
+    @property
+    def cloud_environment(self):
+        return self._cloud_environment
+
+    @cloud_environment.setter
+    def cloud_environment(self, value):
+        self._cloud_environment = value
+        self._destroy_adal_context()
 
     def _convert_token(self, token):
         """Convert token fields from camel case.
@@ -164,6 +208,10 @@ class AADMixin(OAuthTokenAuthentication):
         if token is None:
             raise ValueError("No stored token found.")
         self.token = ast.literal_eval(str(token))
+
+    def set_token(self):
+        if not self._context:
+            self._create_adal_context()
 
     def signed_session(self, session=None):
         """Create token-friendly Requests session, using auto-refresh.
@@ -323,6 +371,7 @@ class UserPassCredentials(AADMixin):
 
         :raises: AuthenticationError if credentials invalid, or call fails.
         """
+        super(UserPassCredentials, self).set_token()
         try:
             token = self._context.acquire_token_with_username_password(
                 self.resource,
@@ -382,6 +431,7 @@ class ServicePrincipalCredentials(AADMixin):
 
         :raises: AuthenticationError if credentials invalid, or call fails.
         """
+        super(ServicePrincipalCredentials, self).set_token()
         try:
             token = self._context.acquire_token_with_client_credentials(
                 self.resource,
