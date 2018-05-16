@@ -757,7 +757,7 @@ class _ImdsTokenProvider(object):
         if self.identity_id:
             payload[self.identity_type] = self.identity_id
 
-        retry, max_retry, wait_accumulated = 1, 20, 0
+        retry, max_retry, start_time = 1, 20, time.time()
         # simplified version of https://en.wikipedia.org/wiki/Exponential_backoff
         slots = [100 * ((2 << x) - 1) / 1000 for x in range(max_retry)]
         while True:
@@ -769,13 +769,14 @@ class _ImdsTokenProvider(object):
                     _LOGGER.warning("MSI: wait: %ss and retry: %s", wait, retry)
                     time.sleep(wait)
                     retry += 1
-                    wait_accumulated += wait
                 else:
-                    if result.status_code == 410 and wait_accumulated < 70:  # special case for IMDS upgrading
-                        _LOGGER.warning("MSI: wait till 70 seconds when IMDS is upgrading")
-                        time.sleep(70-wait_accumulated)
-                    else:
-                        break
+                    if result.status_code == 410:  # For IMDS upgrading, we wait up to 70s
+                        gap = 70 - (time.time() - start_time)
+                        if gap > 0:
+                            _LOGGER.warning("MSI: wait till 70 seconds when IMDS is upgrading")
+                            time.sleep(gap)
+                            continue
+                    break
             elif result.status_code != 200:
                 raise HTTPError(request=result.request, response=result.raw)
             else:
