@@ -757,7 +757,7 @@ class _ImdsTokenProvider(object):
         if self.identity_id:
             payload[self.identity_type] = self.identity_id
 
-        retry, max_retry, start_time = 1, 20, time.time()
+        retry, max_retry, start_time, result = 1, 20, time.time(), None
         # simplified version of https://en.wikipedia.org/wiki/Exponential_backoff
         slots = [100 * ((2 << x) - 1) / 1000 for x in range(max_retry)]
         while True:
@@ -782,7 +782,7 @@ class _ImdsTokenProvider(object):
             else:
                 break
 
-        if retry > max_retry:
+        if result.status_code != 200:
             raise TimeoutError('MSI: Failed to acquire tokens after {} times'.format(max_retry))
 
         _LOGGER.debug('MSI: Token retrieved')
