@@ -205,7 +205,29 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             'secret',
             cloud_environment=AZURE_CHINA_CLOUD
         )
-        
+
+        adal_context.assert_called_with(
+            "https://login.chinacloudapi.cn/common",
+            timeout=None,
+            verify_ssl=None,
+            proxies=None,
+            api_version=None
+        )
+        creds.set_token()
+        creds._context.acquire_token_with_client_credentials.assert_called_with(
+            "https://management.core.chinacloudapi.cn/",
+            123,
+            "secret"
+        )
+
+        # Testing china=True
+
+        creds = ServicePrincipalCredentials(
+            123,
+            'secret',
+            china=True
+        )
+
         adal_context.assert_called_with(
             "https://login.chinacloudapi.cn/common",
             timeout=None,
@@ -297,7 +319,30 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             'pass',
             cloud_environment=AZURE_CHINA_CLOUD
         )
-        
+
+        adal_context.assert_called_with(
+            "https://login.chinacloudapi.cn/common",
+            timeout=None,
+            verify_ssl=None,
+            proxies=None,
+            api_version=None
+        )
+        creds.set_token()
+        creds._context.acquire_token_with_username_password.assert_called_with(
+            "https://management.core.chinacloudapi.cn/",
+            "user",
+            "pass",
+            "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+        )
+
+        # Testing china=True
+
+        creds = UserPassCredentials(
+            'user',
+            'pass',
+            china=True
+        )
+
         adal_context.assert_called_with(
             "https://login.chinacloudapi.cn/common",
             timeout=None,

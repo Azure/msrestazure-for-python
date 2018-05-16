@@ -74,6 +74,8 @@ class AADMixin(OAuthTokenAuthentication):
         Optional kwargs may include:
 
             - cloud_environment (msrestazure.azure_cloud.Cloud): A targeted cloud environment
+            - china (bool): Configure auth for China-based service,
+              default is 'False'.
             - tenant (str): Alternative tenant, default is 'common'.
             - resource (str): Alternative authentication resource, default
               is 'https://management.core.windows.net/'.
@@ -83,7 +85,15 @@ class AADMixin(OAuthTokenAuthentication):
             - proxies (dict): Dictionary mapping protocol or protocol and 
               hostname to the URL of the proxy.
         """
-        self.cloud_environment = kwargs.get('cloud_environment', AZURE_PUBLIC_CLOUD)
+        if kwargs.get('china'):
+            err_msg = ("china parameter is deprecated, "
+                       "please use "
+                       "cloud_environment=msrestazure.azure_cloud.AZURE_CHINA_CLOUD")
+            warnings.warn(err_msg, DeprecationWarning)
+            self.cloud_environment = AZURE_CHINA_CLOUD
+        else:
+            self.cloud_environment = AZURE_PUBLIC_CLOUD
+        self.cloud_environment = kwargs.get('cloud_environment', self.cloud_environment)
 
         auth_endpoint = self.cloud_environment.endpoints.active_directory
         resource = self.cloud_environment.endpoints.active_directory_resource_id
