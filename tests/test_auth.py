@@ -62,58 +62,6 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         self.cfg = AzureConfiguration("https://my_service.com")
         return super(TestServicePrincipalCredentials, self).setUp()
 
-    def test_http(self):
-
-        test_uri = "http://my_service.com"
-        build = azure_active_directory._http(test_uri, "path")
-
-        self.assertEqual(build, "http://my_service.com/path")
-
-        test_uri = "HTTPS://my_service.com"
-        build = azure_active_directory._http(test_uri, "path")
-
-        self.assertEqual(build, "http://my_service.com/path")
-
-        test_uri = "my_service.com"
-        build = azure_active_directory._http(test_uri, "path")
-
-        self.assertEqual(build, "http://my_service.com/path")
-
-    def test_https(self):
-
-        test_uri = "http://my_service.com"
-        build = azure_active_directory._https(test_uri, "path")
-
-        self.assertEqual(build, "https://my_service.com/path")
-
-        test_uri = "HTTPS://my_service.com"
-        build = azure_active_directory._https(test_uri, "path")
-
-        self.assertEqual(build, "https://my_service.com/path")
-
-        test_uri = "my_service.com"
-        build = azure_active_directory._https(test_uri, "path")
-
-        self.assertEqual(build, "https://my_service.com/path")
-
-
-    def test_check_state(self):
-
-        mix = AADMixin(None, None)
-        mix.state = "abc"
-
-        with self.assertRaises(ValueError):
-            mix._check_state("server?test")
-        with self.assertRaises(ValueError):
-            mix._check_state("server?test&abc")
-        with self.assertRaises(ValueError):
-            mix._check_state("server?test&state=xyx")
-        with self.assertRaises(ValueError):
-            mix._check_state("server?test&state=xyx&")
-        with self.assertRaises(ValueError):
-            mix._check_state("server?test&state=abcd&")
-        mix._check_state("server?test&state=abc&")
-
     def test_convert_token(self):
 
         mix = AADMixin(None, None)

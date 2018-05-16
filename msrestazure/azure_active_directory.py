@@ -89,11 +89,8 @@ class AADMixin(OAuthTokenAuthentication):
         resource = self.cloud_environment.endpoints.active_directory_resource_id
 
         tenant = kwargs.get('tenant', self._tenant)
-        self.verify = kwargs.get('verify', True)
         self.cred_store = kwargs.get('keyring', self._keyring)
         self.resource = kwargs.get('resource', resource)
-        self.proxies = kwargs.get('proxies')
-        self.timeout = kwargs.get('timeout')
         self.store_key = "{}_{}".format(
             auth_endpoint.strip('/'), self.store_key)
         self.secret = None
@@ -101,11 +98,11 @@ class AADMixin(OAuthTokenAuthentication):
         # Adal
         self._context = adal.AuthenticationContext(
             auth_endpoint + '/' + tenant,
-            timeout=self.timeout
+            timeout=kwargs.get('timeout'),
+            verify_ssl=kwargs.get('verify'),  # None will honor ADAL_PYTHON_SSL_NO_VERIFY
+            proxies=kwargs.get('proxies'),
+            api_version=None
         )
-        # Hacking ADAL to ensure backward compat
-        if not self.verify:
-            self._context._call_context['verify_ssl'] = False
 
     def _convert_token(self, token):
         """Convert token fields from camel case.
