@@ -309,14 +309,17 @@ class UserPassCredentials(AADMixin):
 
         :raises: AuthenticationError if credentials invalid, or call fails.
         """
-        token = self._context.acquire_token_with_username_password(
-            self.resource,
-            self.username,
-            self.password,
-            self.id
-        )
-        self.token = self._convert_token(token)
-        self._default_token_cache(self.token)
+        try:
+            token = self._context.acquire_token_with_username_password(
+                self.resource,
+                self.username,
+                self.password,
+                self.id
+            )
+            self.token = self._convert_token(token)
+            self._default_token_cache(self.token)
+        except adal.AdalError as err:
+            raise_with_traceback(AuthenticationError, "", err)            
 
 class ServicePrincipalCredentials(AADMixin):
     """Credentials object for Service Principle Authentication.
@@ -363,13 +366,16 @@ class ServicePrincipalCredentials(AADMixin):
 
         :raises: AuthenticationError if credentials invalid, or call fails.
         """
-        token = self._context.acquire_token_with_client_credentials(
-            self.resource,
-            self.id,
-            self.secret
-        )
-        self.token = self._convert_token(token)
-        self._default_token_cache(self.token)
+        try:
+            token = self._context.acquire_token_with_client_credentials(
+                self.resource,
+                self.id,
+                self.secret
+            )
+            self.token = self._convert_token(token)
+            self._default_token_cache(self.token)
+        except adal.AdalError as err:
+            raise_with_traceback(AuthenticationError, "", err)        
 
 # For backward compatibility of import, but I doubt someone uses that...
 class InteractiveCredentials(object):
