@@ -120,9 +120,8 @@ class AADMixin(OAuthTokenAuthentication):
         :param dict token: An authentication token.
         :rtype: dict
         """
-        # Beware that ADAL returns a copy of the token dict, do
+        # Beware that ADAL returns a pointer to its own dict, do
         # NOT change it in place
-        # One level copy is enough
         token = token.copy()
 
         # If it's from ADAL, expiresOn will be in ISO form.
