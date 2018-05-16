@@ -268,6 +268,10 @@ class AADTokenCredentials(AADMixin):
     Credentials objects for AAD token retrieved through external process
     e.g. Python ADAL lib.
 
+    If you just provide "token", refresh will be done on Public Azure with
+    default public Azure "resource". You can set "cloud_environment",
+    "tenant", "resource" and "client_id" to change that behavior.
+
     Optional kwargs may include:
 
     - cloud_environment (msrestazure.azure_cloud.Cloud): A targeted cloud environment
