@@ -82,7 +82,7 @@ class AADMixin(OAuthTokenAuthentication):
             - verify (bool): Verify secure connection, default is 'True'.
             - keyring (str): Name of local token cache, default is 'AzureAAD'.
             - timeout (int): Timeout of the request in seconds.
-            - proxies (dict): Dictionary mapping protocol or protocol and 
+            - proxies (dict): Dictionary mapping protocol or protocol and
               hostname to the URL of the proxy.
         """
         if kwargs.get('china'):
@@ -120,7 +120,7 @@ class AADMixin(OAuthTokenAuthentication):
         :param dict token: An authentication token.
         :rtype: dict
         """
-        # Beware that ADAL returns a copy of the token dict, do 
+        # Beware that ADAL returns a copy of the token dict, do
         # NOT change it in place
         # One level copy is enough
         token = token.copy()
@@ -136,7 +136,7 @@ class AADMixin(OAuthTokenAuthentication):
         # AD answers 'expires_on', and Python oauthlib expects 'expires_at'
         if 'expires_on' in self.token and 'expires_at' not in self.token:
             self.token['expires_at'] = self.token['expires_on']
-        
+
         if self.token.get('expires_at'):
             countdown = float(self.token['expires_at']) - time.time()
             self.token['expires_in'] = countdown
@@ -192,14 +192,17 @@ class AADMixin(OAuthTokenAuthentication):
         :rtype: requests.Session.
         """
         if 'refresh_token' in self.token:
-            token = self._context.acquire_token_with_refresh_token(
-                self.token['refresh_token'],
-                self.id,
-                self.resource,
-                self.secret # This is needed when using Confidential Client
-            )
-            self.token = self._convert_token(token)
-            self._default_token_cache(self.token)            
+            try:
+                token = self._context.acquire_token_with_refresh_token(
+                    self.token['refresh_token'],
+                    self.id,
+                    self.resource,
+                    self.secret # This is needed when using Confidential Client
+                )
+                self.token = self._convert_token(token)
+                self._default_token_cache(self.token)
+            except adal.AdalError as err:
+                raise_with_traceback(AuthenticationError, "", err)
         return self.signed_session(session)
 
     def clear_cached_token(self):
@@ -303,6 +306,8 @@ class UserPassCredentials(AADMixin):
         self.username = username
         self.password = password
         self.secret = secret
+        if not kwargs.get('cached'):
+            self.set_token()
 
     @classmethod
     def retrieve_session(cls, username, client_id=None):
@@ -329,7 +334,7 @@ class UserPassCredentials(AADMixin):
             self.token = self._convert_token(token)
             self._default_token_cache(self.token)
         except adal.AdalError as err:
-            raise_with_traceback(AuthenticationError, "", err)            
+            raise_with_traceback(AuthenticationError, "", err)
 
 class ServicePrincipalCredentials(AADMixin):
     """Credentials object for Service Principle Authentication.
@@ -361,6 +366,8 @@ class ServicePrincipalCredentials(AADMixin):
         self._configure(**kwargs)
 
         self.secret = secret
+        if not kwargs.get('cached'):
+            self.set_token()
 
     @classmethod
     def retrieve_session(cls, client_id):
@@ -385,7 +392,7 @@ class ServicePrincipalCredentials(AADMixin):
             self.token = self._convert_token(token)
             self._default_token_cache(self.token)
         except adal.AdalError as err:
-            raise_with_traceback(AuthenticationError, "", err)        
+            raise_with_traceback(AuthenticationError, "", err)
 
 # For backward compatibility of import, but I doubt someone uses that...
 class InteractiveCredentials(object):
@@ -505,7 +512,7 @@ def get_msi_token(resource, port=50342, msi_conf=None):
         _LOGGER.warning("MSI: Failed to retrieve a token from '%s' with an error of '%s'. This could be caused "
                         "by the MSI extension not yet fullly provisioned.",
                         request_uri, ex)
-        raise 
+        raise
     token_entry = result.json()
     return token_entry['token_type'], token_entry['access_token'], token_entry
 
