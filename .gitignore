@@ -8,3 +8,7 @@ autorest
 .pytest_cache
 .cache
 .coverage
+coverage.xml
+Pipfile.lock
+build
+dist

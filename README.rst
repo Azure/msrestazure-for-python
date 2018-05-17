@@ -20,6 +20,13 @@ To install:
 Release History
 ---------------
 
+2018-05-17 Version 0.4.31
++++++++++++++++++++++++++
+
+**Features**
+
+- Improve MSI for VM token polling algorithm
+
 2018-05-16 Version 0.4.30
 +++++++++++++++++++++++++
 
