@@ -757,7 +757,7 @@ class _ImdsTokenProvider(object):
         if self.identity_id:
             payload[self.identity_type] = self.identity_id
 
-        retry, max_retry, start_time, result = 1, 20, time.time(), None
+        retry, max_retry, start_time = 1, 20, time.time()
         # simplified version of https://en.wikipedia.org/wiki/Exponential_backoff
         slots = [100 * ((2 << x) - 1) / 1000 for x in range(max_retry)]
         while True:
