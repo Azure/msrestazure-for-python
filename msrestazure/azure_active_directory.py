@@ -757,23 +757,32 @@ class _ImdsTokenProvider(object):
         if self.identity_id:
             payload[self.identity_type] = self.identity_id
 
-        retry, max_retry = 1, 20
+        retry, max_retry, start_time = 1, 20, time.time()
         # simplified version of https://en.wikipedia.org/wiki/Exponential_backoff
         slots = [100 * ((2 << x) - 1) / 1000 for x in range(max_retry)]
-        while retry <= max_retry:
+        while True:
             result = requests.get(request_uri, params=payload, headers={'Metadata': 'true', 'User-Agent':self._user_agent})
             _LOGGER.debug("MSI: Retrieving a token from %s, with payload %s", request_uri, payload)
-            if result.status_code in [404, 429] or (499 < result.status_code < 600):
-                wait = random.choice(slots[:retry])
-                _LOGGER.warning("MSI: Wait: %ss and retry: %s", wait, retry)
-                time.sleep(wait)
-                retry += 1
+            if result.status_code in [404, 410, 429] or (499 < result.status_code < 600):
+                if retry <= max_retry:
+                    wait = random.choice(slots[:retry])
+                    _LOGGER.warning("MSI: wait: %ss and retry: %s", wait, retry)
+                    time.sleep(wait)
+                    retry += 1
+                else:
+                    if result.status_code == 410:  # For IMDS upgrading, we wait up to 70s
+                        gap = 70 - (time.time() - start_time)
+                        if gap > 0:
+                            _LOGGER.warning("MSI: wait till 70 seconds when IMDS is upgrading")
+                            time.sleep(gap)
+                            continue
+                    break
             elif result.status_code != 200:
                 raise HTTPError(request=result.request, response=result.raw)
             else:
                 break
 
-        if retry > max_retry:
+        if result.status_code != 200:
             raise TimeoutError('MSI: Failed to acquire tokens after {} times'.format(max_retry))
 
         _LOGGER.debug('MSI: Token retrieved')
