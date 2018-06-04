@@ -284,8 +284,6 @@ class AADTokenCredentials(AADMixin):
     - china (bool): Configure auth for China-based service,
       default is 'False'.
     - tenant (str): Alternative tenant, default is 'common'.
-    - auth_uri (str): Alternative authentication endpoint.
-    - token_uri (str): Alternative token retrieval endpoint.
     - resource (str): Alternative authentication resource, default
       is 'https://management.core.windows.net/'.
     - verify (bool): Verify secure connection, default is 'True'.
@@ -332,8 +330,6 @@ class UserPassCredentials(AADMixin):
     - china (bool): Configure auth for China-based service,
       default is 'False'.
     - tenant (str): Alternative tenant, default is 'common'.
-    - auth_uri (str): Alternative authentication endpoint.
-    - token_uri (str): Alternative token retrieval endpoint.
     - resource (str): Alternative authentication resource, default
       is 'https://management.core.windows.net/'.
     - verify (bool): Verify secure connection, default is 'True'.
@@ -404,8 +400,6 @@ class ServicePrincipalCredentials(AADMixin):
     - china (bool): Configure auth for China-based service,
       default is 'False'.
     - tenant (str): Alternative tenant, default is 'common'.
-    - auth_uri (str): Alternative authentication endpoint.
-    - token_uri (str): Alternative token retrieval endpoint.
     - resource (str): Alternative authentication resource, default
       is 'https://management.core.windows.net/'.
     - verify (bool): Verify secure connection, default is 'True'.
