@@ -109,13 +109,19 @@ class AADMixin(OAuthTokenAuthentication):
         self._context = None  # Future ADAL context
 
     def _create_adal_context(self):
-        auth_endpoint = self.cloud_environment.endpoints.active_directory
+        authority_url = self.cloud_environment.endpoints.active_directory
+        is_adfs = bool(re.match('.+(/adfs|/adfs/)$', authority_url, re.I))
+        if is_adfs:
+            authority_url = authority_url.rstrip('/')  # workaround: ADAL is known to reject auth urls with trailing /
+        else:
+            authority_url = authority_url + '/' + self._tenant
 
         self._context = adal.AuthenticationContext(
-            auth_endpoint + '/' + self._tenant,
+            authority_url,
             timeout=self._timeout,
             verify_ssl=self._verify,
             proxies=self._proxies,
+            validate_authority=not is_adfs,
             api_version=None
         )
 

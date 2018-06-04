@@ -155,6 +155,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             timeout=None,
             verify_ssl=None,
             proxies=None,
+            validate_authority=True,
             api_version=None
         )
 
@@ -166,6 +167,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             timeout=12,
             verify_ssl=None,
             proxies=None,
+            validate_authority=True,
             api_version=None
         )
 
@@ -177,6 +179,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             timeout=12,
             verify_ssl=True,
             proxies=None,
+            validate_authority=True,
             api_version=None
         )
 
@@ -188,6 +191,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             timeout=12,
             verify_ssl=True,
             proxies={},
+            validate_authority=True,
             api_version=None
         )
 
@@ -199,6 +203,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             timeout=12,
             verify_ssl=True,
             proxies={},
+            validate_authority=True,
             api_version=None
         )
 
@@ -228,6 +233,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             timeout=12,
             verify_ssl=True,
             proxies=mock_proxies,
+            validate_authority=True,
             api_version=None
         )
 
@@ -252,6 +258,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             timeout=None,
             verify_ssl=None,
             proxies=None,
+            validate_authority=True,
             api_version=None
         )
         creds.set_token()
@@ -274,6 +281,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             timeout=None,
             verify_ssl=None,
             proxies=None,
+            validate_authority=True,
             api_version=None
         )
         creds.set_token()
@@ -296,6 +304,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             timeout=None,
             verify_ssl=None,
             proxies=None,
+            validate_authority=True,
             api_version=None
         )
         creds.set_token()
@@ -331,6 +340,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             resource="resource",
             timeout=12,
             verify=True,
+            validate_authority=True,
             proxies=mock_proxies
         )
 
@@ -339,6 +349,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             timeout=12,
             verify_ssl=True,
             proxies=mock_proxies,
+            validate_authority=True,
             api_version=None
         )
 
@@ -363,6 +374,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             timeout=None,
             verify_ssl=None,
             proxies=None,
+            validate_authority=True,
             api_version=None
         )
 
@@ -388,6 +400,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             timeout=None,
             verify_ssl=None,
             proxies=None,
+            validate_authority=True,
             api_version=None
         )
         creds.set_token()
@@ -411,6 +424,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             timeout=None,
             verify_ssl=None,
             proxies=None,
+            validate_authority=True,
             api_version=None
         )
         creds.set_token()
