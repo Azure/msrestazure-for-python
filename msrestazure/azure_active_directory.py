@@ -138,7 +138,7 @@ class AADMixin(OAuthTokenAuthentication):
             - verify (bool): Verify secure connection, default is 'True'.
             - keyring (str): Name of local token cache, default is 'AzureAAD'.
             - timeout (int): Timeout of the request in seconds.
-            - proxies (dict): Dictionary mapping protocol or protocol and 
+            - proxies (dict): Dictionary mapping protocol or protocol and
               hostname to the URL of the proxy.
         """
         if kwargs.get('china'):
@@ -197,7 +197,7 @@ class AADMixin(OAuthTokenAuthentication):
         # AD answers 'expires_on', and Python oauthlib expects 'expires_at'
         if 'expires_on' in self.token and 'expires_at' not in self.token:
             self.token['expires_at'] = self.token['expires_on']
-        
+
         if self.token.get('expires_at'):
             countdown = float(self.token['expires_at']) - time.time()
             self.token['expires_in'] = countdown
@@ -480,7 +480,7 @@ class ServicePrincipalCredentials(AADMixin):
                 raise_with_traceback(AuthenticationError, "", err)
             else:
                 self.token = token
-                self._default_token_cache(self.token)                
+                self._default_token_cache(self.token)
 
 # For backward compatibility of import, but I doubt someone uses that...
 class InteractiveCredentials(object):
@@ -600,7 +600,7 @@ def get_msi_token(resource, port=50342, msi_conf=None):
         _LOGGER.warning("MSI: Failed to retrieve a token from '%s' with an error of '%s'. This could be caused "
                         "by the MSI extension not yet fullly provisioned.",
                         request_uri, ex)
-        raise 
+        raise
     token_entry = result.json()
     return token_entry['token_type'], token_entry['access_token'], token_entry
 
@@ -757,7 +757,7 @@ class _ImdsTokenProvider(object):
         if self.identity_id:
             payload[self.identity_type] = self.identity_id
 
-        retry, max_retry, start_time = 1, 20, time.time()
+        retry, max_retry, start_time = 1, 12, time.time()
         # simplified version of https://en.wikipedia.org/wiki/Exponential_backoff
         slots = [100 * ((2 << x) - 1) / 1000 for x in range(max_retry)]
         while True:
