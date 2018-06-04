@@ -83,6 +83,8 @@ class AADMixin(OAuthTokenAuthentication):
             - timeout (int): Timeout of the request in seconds.
             - proxies (dict): Dictionary mapping protocol or protocol and
               hostname to the URL of the proxy.
+            - cache (adal.TokenCache): A adal.TokenCache, see ADAL configuration
+              for details. This parameter is not used here and directly passed to ADAL.
         """
         if kwargs.get('china'):
             err_msg = ("china parameter is deprecated, "
@@ -103,6 +105,7 @@ class AADMixin(OAuthTokenAuthentication):
         self.resource = kwargs.get('resource', resource)
         self._proxies = kwargs.get('proxies')
         self._timeout = kwargs.get('timeout')
+        self._cache = kwargs.get('cache')
         self.store_key = "{}_{}".format(
             auth_endpoint.strip('/'), self.store_key)
         self.secret = None
@@ -122,6 +125,7 @@ class AADMixin(OAuthTokenAuthentication):
             verify_ssl=self._verify,
             proxies=self._proxies,
             validate_authority=not is_adfs,
+            cache=self._cache,
             api_version=None
         )
 
@@ -288,8 +292,10 @@ class AADTokenCredentials(AADMixin):
       is 'https://management.core.windows.net/'.
     - verify (bool): Verify secure connection, default is 'True'.
     - keyring (str): Name of local token cache, default is 'AzureAAD'.
-    - cached (bool): If true, will not attempt to collect a token,
-      which can then be populated later from a cached token.
+    - cached (bool): Reserved keyword. Should not be used.
+    - cache (adal.TokenCache): A adal.TokenCache, see ADAL configuration
+    for details. This parameter is not used here and directly passed to ADAL.
+
 
     :param dict token: Authentication token.
     :param str client_id: Client ID, if not set, Xplat Client ID
@@ -335,10 +341,11 @@ class UserPassCredentials(AADMixin):
     - verify (bool): Verify secure connection, default is 'True'.
     - keyring (str): Name of local token cache, default is 'AzureAAD'.
     - timeout (int): Timeout of the request in seconds.
-    - cached (bool): If true, will not attempt to collect a token,
-      which can then be populated later from a cached token.
     - proxies (dict): Dictionary mapping protocol or protocol and
       hostname to the URL of the proxy.
+    - cached (bool): Reserved keyword. Should not be used.
+    - cache (adal.TokenCache): A adal.TokenCache, see ADAL configuration
+    for details. This parameter is not used here and directly passed to ADAL.
 
     :param str username: Account username.
     :param str password: Account password.
@@ -405,10 +412,11 @@ class ServicePrincipalCredentials(AADMixin):
     - verify (bool): Verify secure connection, default is 'True'.
     - keyring (str): Name of local token cache, default is 'AzureAAD'.
     - timeout (int): Timeout of the request in seconds.
-    - cached (bool): If true, will not attempt to collect a token,
-      which can then be populated later from a cached token.
     - proxies (dict): Dictionary mapping protocol or protocol and
       hostname to the URL of the proxy.
+    - cached (bool): Reserved keyword. Should not be used.
+    - cache (adal.TokenCache): A adal.TokenCache, see ADAL configuration
+    for details. This parameter is not used here and directly passed to ADAL.
 
     :param str client_id: Client ID.
     :param str secret: Client secret.
