@@ -33,6 +33,7 @@ try:
 except ImportError:
     import mock
 
+import httpretty
 import pytest
 
 from requests import Request, Response
@@ -90,7 +91,9 @@ class TestArmPolling(object):
     convert = re.compile('([a-z0-9])([A-Z])')
 
     @staticmethod
-    def mock_send(method, status, headers, body=None):
+    def mock_send(method, status, headers=None, body=None):
+        if headers is None:
+            headers = {}
         response = mock.create_autospec(Response)
         response.request = mock.create_autospec(Request)
         response.request.method = method
@@ -316,7 +319,51 @@ class TestArmPolling(object):
         assert poll.result() is None
         assert poll._polling_method._response.randomFieldFromPollAsyncOpHeader is None
 
+    @httpretty.activate
     def test_long_running_post(self):
+
+        # Test POST LRO with both Location and Azure-AsyncOperation
+
+        # The initial response contains both Location and Azure-AsyncOperation, a 202 and not Body
+        response = TestArmPolling.mock_send(
+            'POST',
+            202,
+            {
+                'location': 'http://example.org/location',
+                'azure-asyncoperation': 'http://example.org/async_monitor',
+            },
+            ''
+        )
+
+        class TestServiceClient(ServiceClient):
+            def send(self, request, headers=None, content=None, **config):
+                assert request.method == 'GET'
+
+                if request.url == 'http://example.org/location':
+                    return TestArmPolling.mock_send(
+                        'GET',
+                        200,
+                        body={'location_result': True}
+                    )
+                elif request.url == 'http://example.org/async_monitor':
+                    return TestArmPolling.mock_send(
+                        'GET',
+                        200,
+                        body={'status': 'Succeeded'}
+                    )
+                else:
+                    pytest.fail("No other query allowed")
+        
+        def deserialization_cb(response):
+            return response.json()
+
+        poll = LROPoller(
+            TestServiceClient(None, None),
+            response,
+            deserialization_cb,
+            ARMPolling(0))
+        result = poll.result()
+        assert result['location_result'] == True
 
         # Test throw on non LRO related status code
         response = TestArmPolling.mock_send('POST', 201, {})

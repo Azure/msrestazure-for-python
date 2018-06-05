@@ -179,8 +179,8 @@ class LongRunningOperation(object):
         :param requests.Response response: latest REST call response.
         :rtype: bool
         """
-        return (self.async_url or not self.resource) and \
-                self.method in {'PUT', 'PATCH'}
+        return ((self.async_url or not self.resource) and self.method in {'PUT', 'PATCH'}) \
+                or (self.location_url and self.method == 'POST')
 
     def set_initial_status(self, response):
         """Process first response after initiating long running
@@ -380,8 +380,11 @@ class ARMPolling(PollingMethod):
             raise OperationFailed("Operation failed or cancelled")
 
         elif self._operation.should_do_final_get():
-            initial_url = self._operation.initial_response.request.url
-            self._response = self.request_status(initial_url)
+            if self._operation.method == 'POST' and self._operation.location_url:
+                final_get_url = self._operation.location_url
+            else:
+                final_get_url = self._operation.initial_response.request.url
+            self._response = self.request_status(final_get_url)
             self._operation.get_status_from_resource(self._response)
 
     def _delay(self):
