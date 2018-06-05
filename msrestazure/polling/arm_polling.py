@@ -180,7 +180,7 @@ class LongRunningOperation(object):
         :rtype: bool
         """
         return ((self.async_url or not self.resource) and self.method in {'PUT', 'PATCH'}) \
-                or (self.location_url and self.method == 'POST')
+                or (self.location_url and self.async_url and self.method == 'POST')
 
     def set_initial_status(self, response):
         """Process first response after initiating long running
