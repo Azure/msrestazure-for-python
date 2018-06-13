@@ -20,6 +20,18 @@ To install:
 Release History
 ---------------
 
+2018-06-13 Version 0.4.32
++++++++++++++++++++++++++
+
+**Features**
+
+- Implement new LRO options of Autorest #101
+
+**Bug fixes**
+
+- Reduce max MSI polling time for VM #100
+
+
 2018-05-17 Version 0.4.31
 +++++++++++++++++++++++++
 
@@ -50,7 +62,7 @@ Release History
 
 Do to some stability issues with "keyring" dependency that highly change from one system to another,
 this package is no longer a dependency of "msrestazure".
-If you were using the secured token cache of `ServicePrincipalCredentials` and `UserPassCredentials`, 
+If you were using the secured token cache of `ServicePrincipalCredentials` and `UserPassCredentials`,
 the feature is still available, but you need to install manually "keyring". The functionnality will activate automatically.
 
 2018-04-18 Version 0.4.27
@@ -91,7 +103,7 @@ Update msrest dependency to 0.4.28
 
 **Bugfix**
 
-- Fix LRO result if POST uses AsyncOperation header (Autorest.Python 3.0 only) #79 
+- Fix LRO result if POST uses AsyncOperation header (Autorest.Python 3.0 only) #79
 
 2018-02-27 Version 0.4.22
 +++++++++++++++++++++++++
