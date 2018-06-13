@@ -1,6 +1,6 @@
 #--------------------------------------------------------------------------
 #
-# Copyright (c) Microsoft Corporation. All rights reserved. 
+# Copyright (c) Microsoft Corporation. All rights reserved.
 #
 # The MIT License (MIT)
 #
@@ -33,6 +33,7 @@ try:
 except ImportError:
     import mock
 
+import httpretty
 import pytest
 
 from requests import Request, Response
@@ -90,7 +91,9 @@ class TestArmPolling(object):
     convert = re.compile('([a-z0-9])([A-Z])')
 
     @staticmethod
-    def mock_send(method, status, headers, body=None):
+    def mock_send(method, status, headers=None, body=None):
+        if headers is None:
+            headers = {}
         response = mock.create_autospec(Response)
         response.request = mock.create_autospec(Request)
         response.request.method = method
@@ -113,7 +116,7 @@ class TestArmPolling(object):
         response.request.method = 'GET'
         response.headers = headers or {}
         response.headers.update({"content-type": "application/json; charset=utf8"})
-        
+
         if url == ASYNC_URL:
             response.request.url = url
             response.status_code = POLLING_STATUS
@@ -142,13 +145,13 @@ class TestArmPolling(object):
     @staticmethod
     def mock_outputs(response):
         body = response.json()
-        body = {TestArmPolling.convert.sub(r'\1_\2', k).lower(): v 
+        body = {TestArmPolling.convert.sub(r'\1_\2', k).lower(): v
                 for k, v in body.items()}
         properties = body.setdefault('properties', {})
         if 'name' in body:
             properties['name'] = body['name']
         if properties:
-            properties = {TestArmPolling.convert.sub(r'\1_\2', k).lower(): v 
+            properties = {TestArmPolling.convert.sub(r'\1_\2', k).lower(): v
                           for k, v in properties.items()}
             del body['properties']
             body.update(properties)
@@ -316,7 +319,72 @@ class TestArmPolling(object):
         assert poll.result() is None
         assert poll._polling_method._response.randomFieldFromPollAsyncOpHeader is None
 
+    @httpretty.activate
     def test_long_running_post(self):
+
+        # Test POST LRO with both Location and Azure-AsyncOperation
+
+        # The initial response contains both Location and Azure-AsyncOperation, a 202 and no Body
+        response = TestArmPolling.mock_send(
+            'POST',
+            202,
+            {
+                'location': 'http://example.org/location',
+                'azure-asyncoperation': 'http://example.org/async_monitor',
+            },
+            ''
+        )
+
+        class TestServiceClient(ServiceClient):
+            def send(self, request, headers=None, content=None, **config):
+                assert request.method == 'GET'
+
+                if request.url == 'http://example.org/location':
+                    return TestArmPolling.mock_send(
+                        'GET',
+                        200,
+                        body={'location_result': True}
+                    )
+                elif request.url == 'http://example.org/async_monitor':
+                    return TestArmPolling.mock_send(
+                        'GET',
+                        200,
+                        body={'status': 'Succeeded'}
+                    )
+                else:
+                    pytest.fail("No other query allowed")
+
+        def deserialization_cb(response):
+            return response.json()
+
+        # Test 1, LRO options with Location final state
+        poll = LROPoller(
+            TestServiceClient(None, None),
+            response,
+            deserialization_cb,
+            ARMPolling(0, lro_options={"final-state-via": "location"}))
+        result = poll.result()
+        assert result['location_result'] == True
+
+        # Test 2, LRO options with Azure-AsyncOperation final state
+        poll = LROPoller(
+            TestServiceClient(None, None),
+            response,
+            deserialization_cb,
+            ARMPolling(0, lro_options={"final-state-via": "azure-async-operation"}))
+        result = poll.result()
+        assert result['status'] == 'Succeeded'
+
+        # Test 3, backward compat (no options, means "azure-async-operation")
+        poll = LROPoller(
+            TestServiceClient(None, None),
+            response,
+            deserialization_cb,
+            ARMPolling(0))
+        result = poll.result()
+        assert result['status'] == 'Succeeded'
+
+        # Former oooooold tests to refactor one day to something more readble
 
         # Test throw on non LRO related status code
         response = TestArmPolling.mock_send('POST', 201, {})
@@ -410,4 +478,4 @@ class TestArmPolling(object):
 
         LOCATION_BODY = json.dumps({ 'name': TEST_NAME })
         POLLING_STATUS = 200
-        
+
