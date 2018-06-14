@@ -111,8 +111,9 @@ class CloudErrorData(object):
         error data.
         """
         try:
-            value = eval(value)
-        except (SyntaxError, TypeError):
+            import ast
+            value = ast.literal_eval(value)
+        except (SyntaxError, TypeError, ValueError):
             pass
         try:
             value = value.get('value', value)

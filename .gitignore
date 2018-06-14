@@ -1,7 +1,14 @@
 __pycache__
 *.pyc
-venv*
+.venv
 msrestazure.egg-info
 .tox
 tests/.coverage
 autorest
+.pytest_cache
+.cache
+.coverage
+coverage.xml
+Pipfile.lock
+build
+dist

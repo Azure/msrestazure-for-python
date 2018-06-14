@@ -20,6 +20,51 @@ To install:
 Release History
 ---------------
 
+2018-06-13 Version 0.4.32
++++++++++++++++++++++++++
+
+**Features**
+
+- Implement new LRO options of Autorest #101
+
+**Bug fixes**
+
+- Reduce max MSI polling time for VM #100
+
+
+2018-05-17 Version 0.4.31
++++++++++++++++++++++++++
+
+**Features**
+
+- Improve MSI for VM token polling algorithm
+
+2018-05-16 Version 0.4.30
++++++++++++++++++++++++++
+
+**Features**
+
+- Allow ADAL 0.5.0 to 2.0.0 excluded as valid ADAL dependency
+
+2018-04-30 Version 0.4.29
++++++++++++++++++++++++++
+
+**Bugfixes**
+
+- Fix refresh Token on `AADTokenCredentials` (was broken in 0.4.27)
+- Now `UserPasswordCredentials` correctly use the refreshToken, and not user/password to refresh the session (was broken in 0.4.27)
+- Bring back `keyring`, with minimal dependency 12.0.2 that fixes the installation problem on old Python
+
+2018-04-23 Version 0.4.28
++++++++++++++++++++++++++
+
+**Disclaimer**
+
+Do to some stability issues with "keyring" dependency that highly change from one system to another,
+this package is no longer a dependency of "msrestazure".
+If you were using the secured token cache of `ServicePrincipalCredentials` and `UserPassCredentials`,
+the feature is still available, but you need to install manually "keyring". The functionnality will activate automatically.
+
 2018-04-18 Version 0.4.27
 +++++++++++++++++++++++++
 
@@ -58,7 +103,7 @@ Update msrest dependency to 0.4.28
 
 **Bugfix**
 
-- Fix LRO result if POST uses AsyncOperation header (Autorest.Python 3.0 only) #79 
+- Fix LRO result if POST uses AsyncOperation header (Autorest.Python 3.0 only) #79
 
 2018-02-27 Version 0.4.22
 +++++++++++++++++++++++++

@@ -40,6 +40,8 @@ FINISHED = frozenset(['succeeded', 'canceled', 'failed'])
 FAILED = frozenset(['canceled', 'failed'])
 SUCCEEDED = frozenset(['succeeded'])
 
+_AZURE_ASYNC_OPERATION_FINAL_STATE = "azure-async-operation"
+_LOCATION_FINAL_STATE = "location"
 
 def finished(status):
     if hasattr(status, 'value'):
@@ -102,9 +104,14 @@ class LongRunningOperation(object):
     """LongRunningOperation
     Provides default logic for interpreting operation responses
     and status updates.
+
+    :param requests.Response response: The initial response.
+    :param callable deserialization_callback: The deserialization callaback.
+    :param dict lro_options: LRO options.
+    :param kwargs: Unused for now
     """
 
-    def __init__(self, response, deserialization_callback):
+    def __init__(self, response, deserialization_callback, lro_options=None, **kwargs):
         self.method = response.request.method
         self.initial_response = response
         self.status = ""
@@ -112,6 +119,11 @@ class LongRunningOperation(object):
         self.deserialization_callback = deserialization_callback
         self.async_url = None
         self.location_url = None
+        if lro_options is None:
+            lro_options = {
+                'final-state-via': _AZURE_ASYNC_OPERATION_FINAL_STATE
+            }
+        self.lro_options = lro_options
 
     def _raise_if_bad_http_status_and_method(self, response):
         """Check response status code is valid for a Put or Patch
@@ -179,8 +191,8 @@ class LongRunningOperation(object):
         :param requests.Response response: latest REST call response.
         :rtype: bool
         """
-        return (self.async_url or not self.resource) and \
-                self.method in {'PUT', 'PATCH'}
+        return ((self.async_url or not self.resource) and self.method in {'PUT', 'PATCH'}) \
+                or (self.lro_options['final-state-via'] == _LOCATION_FINAL_STATE and self.location_url and self.async_url and self.method == 'POST')
 
     def set_initial_status(self, response):
         """Process first response after initiating long running
@@ -279,7 +291,7 @@ class LongRunningOperation(object):
         try:
             self.resource = self._deserialize(response)
         except Exception:
-            self.resource = None            
+            self.resource = None
 
     def set_async_url_if_present(self, response):
         async_url = get_header_url(response, 'azure-asyncoperation')
@@ -302,11 +314,12 @@ class LongRunningOperation(object):
 
 class ARMPolling(PollingMethod):
 
-    def __init__(self, timeout=30, **operation_config):
+    def __init__(self, timeout=30, lro_options=None, **operation_config):
         self._timeout = timeout
         self._operation = None # Will hold an instance of LongRunningOperation
         self._response = None  # Will hold latest received response
         self._operation_config = operation_config
+        self._lro_options = lro_options
 
     def status(self):
         """Return the current status as a string.
@@ -335,7 +348,7 @@ class ARMPolling(PollingMethod):
         """
         self._client = client
         self._response = initial_response
-        self._operation = LongRunningOperation(initial_response, deserialization_callback)
+        self._operation = LongRunningOperation(initial_response, deserialization_callback, self._lro_options)
         try:
             self._operation.set_initial_status(initial_response)
         except BadStatus:
@@ -380,8 +393,11 @@ class ARMPolling(PollingMethod):
             raise OperationFailed("Operation failed or cancelled")
 
         elif self._operation.should_do_final_get():
-            initial_url = self._operation.initial_response.request.url
-            self._response = self.request_status(initial_url)
+            if self._operation.method == 'POST' and self._operation.location_url:
+                final_get_url = self._operation.location_url
+            else:
+                final_get_url = self._operation.initial_response.request.url
+            self._response = self.request_status(final_get_url)
             self._operation.get_status_from_resource(self._response)
 
     def _delay(self):

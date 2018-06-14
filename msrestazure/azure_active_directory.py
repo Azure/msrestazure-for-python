@@ -62,7 +62,7 @@ from msrestazure.azure_configuration import AzureConfiguration
 _LOGGER = logging.getLogger(__name__)
 
 if not keyring:
-    _LOGGER.warning("Cannot load keyring on your system: %s", KEYRING_EXCEPTION)
+    _LOGGER.warning("Cannot load 'keyring' on your system (either not installed, or not configured correctly): %s", KEYRING_EXCEPTION)
 
 def _build_url(uri, paths, scheme):
     """Combine URL parts.
@@ -138,7 +138,7 @@ class AADMixin(OAuthTokenAuthentication):
             - verify (bool): Verify secure connection, default is 'True'.
             - keyring (str): Name of local token cache, default is 'AzureAAD'.
             - timeout (int): Timeout of the request in seconds.
-            - proxies (dict): Dictionary mapping protocol or protocol and 
+            - proxies (dict): Dictionary mapping protocol or protocol and
               hostname to the URL of the proxy.
         """
         if kwargs.get('china'):
@@ -186,11 +186,18 @@ class AADMixin(OAuthTokenAuthentication):
         :param dict token: An authentication token.
         :rtype: dict
         """
+        # If it's from ADAL, expiresOn will be in ISO form.
+        # Bring it back to float, using expiresIn
+        if "expiresOn" in token and "expiresIn" in token:
+            token["expiresOn"] = token['expiresIn'] + time.time()
         return {self._case.sub(r'\1_\2', k).lower(): v
                 for k, v in token.items()}
 
     def _parse_token(self):
-        # TODO: We could also check expires_on and use to update expires_in
+        # AD answers 'expires_on', and Python oauthlib expects 'expires_at'
+        if 'expires_on' in self.token and 'expires_at' not in self.token:
+            self.token['expires_at'] = self.token['expires_on']
+
         if self.token.get('expires_at'):
             countdown = float(self.token['expires_at']) - time.time()
             self.token['expires_in'] = countdown
@@ -233,7 +240,42 @@ class AADMixin(OAuthTokenAuthentication):
         """
         self._parse_token()
         return super(AADMixin, self).signed_session(session)
-            
+
+    def _setup_session(self):
+        """Create token-friendly Requests session.
+
+        :rtype: requests_oauthlib.OAuth2Session
+        """
+        return oauth.OAuth2Session(client=self.client)
+
+    def refresh_session(self, session=None):
+        """Return updated session if token has expired, attempts to
+        refresh using newly acquired token.
+
+        If a session object is provided, configure it directly. Otherwise,
+        create a new session and return it.
+
+        :param session: The session to configure for authentication
+        :type session: requests.Session
+        :rtype: requests.Session.
+        """
+        if 'refresh_token' in self.token:
+            with self._setup_session() as session:
+                try:
+                    token = session.refresh_token(self.token_uri,
+                                                  refresh_token=self.token['refresh_token'],
+                                                  verify=self.verify,
+                                                  proxies=self.proxies,
+                                                  timeout=self.timeout)
+                except (RequestException, OAuth2Error, InvalidGrantError) as err:
+                    raise_with_traceback(AuthenticationError, "", err)
+
+                self.token = token
+                self._default_token_cache(self.token)
+        else:
+            self.set_token()
+        return self.signed_session(session)
+
     def clear_cached_token(self):
         """Clear any stored tokens.
 
@@ -276,6 +318,7 @@ class AADTokenCredentials(AADMixin):
             client_id = '04b07795-8ddb-461a-bbee-02f9e1bf7b46'
         super(AADTokenCredentials, self).__init__(client_id, None)
         self._configure(**kwargs)
+        self.client = None
         if not kwargs.get('cached'):
             self.token = self._convert_token(token)
             self.signed_session()
@@ -348,12 +391,6 @@ class UserPassCredentials(AADMixin):
         session._retrieve_stored_token()
         return session
 
-    def _setup_session(self):
-        """Create token-friendly Requests session.
-
-        :rtype: requests_oauthlib.OAuth2Session
-        """
-        return oauth.OAuth2Session(client=self.client)
 
     def set_token(self):
         """Get token using Username/Password credentials.
@@ -379,38 +416,6 @@ class UserPassCredentials(AADMixin):
 
             self.token = token
             self._default_token_cache(self.token)
-
-    def refresh_session(self, session=None):
-        """Return updated session if token has expired, attempts to
-        refresh using newly acquired token.
-
-        If a session object is provided, configure it directly. Otherwise,
-        create a new session and return it.
-
-        :param session: The session to configure for authentication
-        :type session: requests.Session
-        :rtype: requests.Session.
-        """
-        with self._setup_session() as session:
-            optional = {}
-            if self.secret:
-                optional['client_secret'] = self.secret
-            try:
-                token = session.refresh_token(self.token_uri,
-                                              client_id=self.id,
-                                              username=self.username,
-                                              password=self.password,
-                                              resource=self.resource,
-                                              verify=self.verify,
-                                              proxies=self.proxies,
-                                              timeout=self.timeout,
-                                              **optional)
-            except (RequestException, OAuth2Error, InvalidGrantError) as err:
-                raise_with_traceback(AuthenticationError, "", err)
-
-            self.token = token
-            self._default_token_cache(self.token)
-        return self.signed_session(session)
 
 
 class ServicePrincipalCredentials(AADMixin):
@@ -456,13 +461,6 @@ class ServicePrincipalCredentials(AADMixin):
         session._retrieve_stored_token()
         return session
 
-    def _setup_session(self):
-        """Create token-friendly Requests session.
-
-        :rtype: requests_oauthlib.OAuth2Session
-        """
-        return oauth.OAuth2Session(self.id, client=self.client)
-
     def set_token(self):
         """Get token using Client ID/Secret credentials.
 
@@ -483,23 +481,6 @@ class ServicePrincipalCredentials(AADMixin):
             else:
                 self.token = token
                 self._default_token_cache(self.token)
-
-    def refresh_session(self, session=None):
-        """Alias to signed_session().
-
-        SP flow does not contain refresh_token, so this method is just asking a new
-        token to AD.
-
-        If a session object is provided, configure it directly. Otherwise,
-        create a new session and return it.
-
-        :param session: The session to configure for authentication
-        :type session: requests.Session
-        :rtype: requests.Session.
-        """
-        self.set_token()
-        return self.signed_session(session)
-                
 
 # For backward compatibility of import, but I doubt someone uses that...
 class InteractiveCredentials(object):
@@ -619,7 +600,7 @@ def get_msi_token(resource, port=50342, msi_conf=None):
         _LOGGER.warning("MSI: Failed to retrieve a token from '%s' with an error of '%s'. This could be caused "
                         "by the MSI extension not yet fullly provisioned.",
                         request_uri, ex)
-        raise 
+        raise
     token_entry = result.json()
     return token_entry['token_type'], token_entry['access_token'], token_entry
 
@@ -776,23 +757,32 @@ class _ImdsTokenProvider(object):
         if self.identity_id:
             payload[self.identity_type] = self.identity_id
 
-        retry, max_retry = 1, 20
+        retry, max_retry, start_time = 1, 12, time.time()
         # simplified version of https://en.wikipedia.org/wiki/Exponential_backoff
         slots = [100 * ((2 << x) - 1) / 1000 for x in range(max_retry)]
-        while retry <= max_retry:
+        while True:
             result = requests.get(request_uri, params=payload, headers={'Metadata': 'true', 'User-Agent':self._user_agent})
             _LOGGER.debug("MSI: Retrieving a token from %s, with payload %s", request_uri, payload)
-            if result.status_code in [404, 429] or (499 < result.status_code < 600):
-                wait = random.choice(slots[:retry])
-                _LOGGER.warning("MSI: Wait: %ss and retry: %s", wait, retry)
-                time.sleep(wait)
-                retry += 1
+            if result.status_code in [404, 410, 429] or (499 < result.status_code < 600):
+                if retry <= max_retry:
+                    wait = random.choice(slots[:retry])
+                    _LOGGER.warning("MSI: wait: %ss and retry: %s", wait, retry)
+                    time.sleep(wait)
+                    retry += 1
+                else:
+                    if result.status_code == 410:  # For IMDS upgrading, we wait up to 70s
+                        gap = 70 - (time.time() - start_time)
+                        if gap > 0:
+                            _LOGGER.warning("MSI: wait till 70 seconds when IMDS is upgrading")
+                            time.sleep(gap)
+                            continue
+                    break
             elif result.status_code != 200:
                 raise HTTPError(request=result.request, response=result.raw)
             else:
                 break
 
-        if retry > max_retry:
+        if result.status_code != 200:
             raise TimeoutError('MSI: Failed to acquire tokens after {} times'.format(max_retry))
 
         _LOGGER.debug('MSI: Token retrieved')
