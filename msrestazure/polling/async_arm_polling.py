@@ -73,8 +73,11 @@ class AsyncARMPolling(ARMPolling):
             raise OperationFailed("Operation failed or cancelled")
 
         elif self._operation.should_do_final_get():
-            initial_url = self._operation.initial_response.request.url
-            self._response = await self.request_status(initial_url)
+            if self._operation.method == 'POST' and self._operation.location_url:
+                final_get_url = self._operation.location_url
+            else:
+                final_get_url = self._operation.initial_response.request.url
+            self._response = await self.request_status(final_get_url)
             self._operation.get_status_from_resource(self._response)
 
     async def _delay(self):
@@ -114,9 +117,9 @@ class AsyncARMPolling(ARMPolling):
 
         :rtype: requests.Response
         """
-        request = self._client.get(status_link)
         # ARM requires to re-inject 'x-ms-client-request-id' while polling
         header_parameters = {
             'x-ms-client-request-id': self._operation.initial_response.request.headers['x-ms-client-request-id']
         }
-        return await self._client.async_send(request, header_parameters, stream=False, **self._operation_config)
+        request = self._client.get(status_link, headers=header_parameters)
+        return await self._client.async_send(request, stream=False, **self._operation_config)
