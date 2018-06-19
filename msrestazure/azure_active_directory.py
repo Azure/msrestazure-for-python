@@ -260,9 +260,9 @@ class AADMixin(OAuthTokenAuthentication):
         :rtype: requests.Session.
         """
         if 'refresh_token' in self.token:
-            with self._setup_session() as session:
+            with self._setup_session() as oauth_session:
                 try:
-                    token = session.refresh_token(self.token_uri,
+                    token = oauth_session.refresh_token(self.token_uri,
                                                   refresh_token=self.token['refresh_token'],
                                                   verify=self.verify,
                                                   proxies=self.proxies,
@@ -274,7 +274,7 @@ class AADMixin(OAuthTokenAuthentication):
                 self._default_token_cache(self.token)
         else:
             self.set_token()
-        return self.signed_session(session)
+        return self.signed_session(session or oauth_session)
 
     def clear_cached_token(self):
         """Clear any stored tokens.
