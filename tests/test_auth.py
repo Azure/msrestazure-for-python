@@ -617,6 +617,38 @@ def test_refresh_aadtokencredentials_common_session(user_password):
         response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
         response.raise_for_status() # Should never raise
 
+@pytest.mark.slow
+def test_refresh_aadtokencredentials_existing_session(user_password):
+    user, password = user_password
+
+    context = adal.AuthenticationContext('https://login.microsoftonline.com/common')
+    token = context.acquire_token_with_username_password(
+        'https://management.core.windows.net/',
+        user,
+        password,
+        '04b07795-8ddb-461a-bbee-02f9e1bf7b46'
+    )
+    creds = AADTokenCredentials(token)
+
+    root_session = Session()
+
+    creds.signed_session(root_session)
+
+    response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
+    response.raise_for_status()  # Should never raise
+
+    # Hacking the token time
+    creds.token['expires_on'] = time.time() - 10
+    creds.token['expires_at'] = creds.token['expires_on']
+
+    try:
+        creds.signed_session(root_session)
+        response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
+        pytest.fail("Requests should have failed")
+    except oauthlib.oauth2.rfc6749.errors.TokenExpiredError:
+        creds.refresh_session(root_session)
+        response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
+        response.raise_for_status()  # Should never raise
 
 if __name__ == '__main__':
     unittest.main()
