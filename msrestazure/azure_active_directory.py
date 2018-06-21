@@ -274,7 +274,7 @@ class AADMixin(OAuthTokenAuthentication):
                 self._default_token_cache(self.token)
         else:
             self.set_token()
-        return self.signed_session(session or oauth_session)
+        return self.signed_session(session)
 
     def clear_cached_token(self):
         """Clear any stored tokens.
