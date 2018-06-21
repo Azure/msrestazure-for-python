@@ -634,7 +634,7 @@ def test_refresh_aadtokencredentials_existing_session(user_password):
 
     creds.signed_session(root_session)
 
-    response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
+    response = root_session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
     response.raise_for_status()  # Should never raise
 
     # Hacking the token time
@@ -643,11 +643,11 @@ def test_refresh_aadtokencredentials_existing_session(user_password):
 
     try:
         creds.signed_session(root_session)
-        response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
+        response = root_session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
         pytest.fail("Requests should have failed")
     except oauthlib.oauth2.rfc6749.errors.TokenExpiredError:
         creds.refresh_session(root_session)
-        response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
+        response = root_session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
         response.raise_for_status()  # Should never raise
 
 if __name__ == '__main__':
