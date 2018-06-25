@@ -20,6 +20,16 @@ To install:
 Release History
 ---------------
 
+2018-06-21 Version 0.4.33
++++++++++++++++++++++++++
+
+**Bugfixes**
+
+- Fixes refreshToken in UserPassCredentials and AADTokenCredentials #103
+- Fix US government cloud definition #104
+
+Thanks to mjcaley for his contribution
+
 2018-06-13 Version 0.4.32
 +++++++++++++++++++++++++
 
