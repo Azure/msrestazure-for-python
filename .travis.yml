@@ -5,12 +5,11 @@ cache: pip
 _autorest_install: &_autorest_install
   before_install:
   - git clone --recursive https://github.com/Azure/autorest.python.git
-  - cd autorest.python
   - sudo apt-get install libunwind8-dev
-  - nvm install 7
+  - nvm install 8
+  - pushd autorest.python
   - npm install # Install test server pre-requisites
-  - cd node_modules/@microsoft.azure/autorest.testserver
-  - npm start &
+  - popd
 matrix:
   include:
     - python: 2.7
@@ -21,6 +20,8 @@ matrix:
       env: TOXENV=py35
     - python: 3.6
       env: TOXENV=py36
+    - python: 3.7
+      env: TOXENV=py37
     - python: 2.7
       env: TOXENV=py27-autorest
       <<: *_autorest_install
@@ -33,11 +34,16 @@ matrix:
     - python: 3.6
       env: TOXENV=py36-autorest
       <<: *_autorest_install
+    - python: 3.7
+      env: TOXENV=py37-autorest
+      <<: *_autorest_install
   allow_failures:
+    - env: TOXENV=py37
     - env: TOXENV=py27-autorest
     - env: TOXENV=py34-autorest
     - env: TOXENV=py35-autorest
     - env: TOXENV=py36-autorest
+    - env: TOXENV=py37-autorest
 install:
   - pip install tox
 script:
