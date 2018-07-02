@@ -20,6 +20,13 @@ To install:
 Release History
 ---------------
 
+2018-07-02 Version 0.4.34
++++++++++++++++++++++++++
+
+**Bugfixes**
+
+- MSIAuthentication should initialize the token attribute on creation #106
+
 2018-06-21 Version 0.4.33
 +++++++++++++++++++++++++
 
