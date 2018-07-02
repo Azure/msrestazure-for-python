@@ -685,6 +685,8 @@ class MSIAuthentication(BasicTokenAuthentication):
         elif "MSI_ENDPOINT" not in os.environ:
             # Use IMDS if no MSI_ENDPOINT
             self._vm_msi = _ImdsTokenProvider(self.resource, self.msi_conf)
+        # Follow the same convention as all Credentials class to check for the token at creation time #106
+        self.set_token()
 
     def set_token(self):
         if _is_app_service():

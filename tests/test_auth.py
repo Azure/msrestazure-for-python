@@ -240,7 +240,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             ServicePrincipalCredentials, '_setup_session', return_value=session):
 
             proxies = {'http': 'http://myproxy:80'}
-            creds = ServicePrincipalCredentials("client_id", "secret", 
+            creds = ServicePrincipalCredentials("client_id", "secret",
                                                 verify=False, tenant="private",
                                                 proxies=proxies)
 
@@ -311,7 +311,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
             UserPassCredentials, '_setup_session', return_value=session):
 
             proxies = {'http': 'http://myproxy:8080'}
-            creds = UserPassCredentials("my_username", "my_password", 
+            creds = UserPassCredentials("my_username", "my_password",
                                         verify=False, tenant="private", resource='resource',
                                         proxies=proxies)
 
@@ -381,7 +381,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         assert token_type == "TokenType"
         assert access_token == "AccessToken"
         assert token_entry == json_payload
-        
+
         httpretty.register_uri(httpretty.POST,
                                'http://localhost:42/oauth2/token',
                                status=503,
@@ -419,10 +419,9 @@ class TestServicePrincipalCredentials(unittest.TestCase):
                                content_type="application/json")
 
         credentials = MSIAuthentication()
-        credentials.set_token()
         assert credentials.scheme == "TokenTypeIMDS"
         assert credentials.token == json_payload
-        
+
         # Test MSIAuthentication with MSI_ENDPOINT and no APPSETTING_WEBSITE_SITE_NAME is MSI_ENDPOINT
 
         json_payload = {
@@ -436,7 +435,6 @@ class TestServicePrincipalCredentials(unittest.TestCase):
 
         with mock.patch('os.environ', {'MSI_ENDPOINT': 'http://random.org/yadadada'}):
             credentials = MSIAuthentication()
-            credentials.set_token()
             assert credentials.scheme == "TokenTypeMSI_ENDPOINT"
             assert credentials.token == json_payload
 
@@ -458,14 +456,13 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         }
         with mock.patch.dict('os.environ', app_service_env):
             credentials = MSIAuthentication(resource="foo")
-            credentials.set_token()
             assert credentials.scheme == "TokenTypeWebApp"
             assert credentials.token == json_payload
 
 
     @httpretty.activate
     def test_msi_vm_imds_retry(self):
- 
+
         json_payload = {
             'token_type': "TokenTypeIMDS",
             "access_token": "AccessToken"
@@ -484,20 +481,18 @@ class TestServicePrincipalCredentials(unittest.TestCase):
                                body=json.dumps(json_payload),
                                content_type="application/json")
         credentials = MSIAuthentication()
-        credentials.set_token()
         assert credentials.scheme == "TokenTypeIMDS"
         assert credentials.token == json_payload
 
 
     @httpretty.activate
     def test_msi_vm_imds_no_retry_on_bad_error(self):
- 
+
         httpretty.register_uri(httpretty.GET,
                                'http://169.254.169.254/metadata/identity/oauth2/token',
                                status=499)
-        credentials = MSIAuthentication()
         with self.assertRaises(HTTPError) as cm:
-            credentials.set_token()
+            credentials = MSIAuthentication()
 
 
 @pytest.mark.slow
@@ -515,7 +510,7 @@ def test_refresh_userpassword_no_common_session(user_password):
     # Hacking the token time
     creds.token['expires_on'] = time.time() - 10
     creds.token['expires_at'] = creds.token['expires_on']
-    
+
     try:
         session = creds.signed_session()
         response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
@@ -541,7 +536,7 @@ def test_refresh_userpassword_common_session(user_password):
     # Hacking the token time
     creds.token['expires_on'] = time.time() - 10
     creds.token['expires_at'] = creds.token['expires_on']
-    
+
     try:
         session = creds.signed_session(root_session)
         response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
@@ -573,7 +568,7 @@ def test_refresh_aadtokencredentials_no_common_session(user_password):
     # Hacking the token time
     creds.token['expires_on'] = time.time() - 10
     creds.token['expires_at'] = creds.token['expires_on']
-    
+
     try:
         session = creds.signed_session()
         response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
@@ -607,7 +602,7 @@ def test_refresh_aadtokencredentials_common_session(user_password):
     # Hacking the token time
     creds.token['expires_on'] = time.time() - 10
     creds.token['expires_at'] = creds.token['expires_on']
-    
+
     try:
         session = creds.signed_session(root_session)
         response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
