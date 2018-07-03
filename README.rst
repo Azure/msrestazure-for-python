@@ -20,6 +20,13 @@ To install:
 Release History
 ---------------
 
+2018-07-03 Version 0.4.35
++++++++++++++++++++++++++
+
+**Bugfixes**
+
+- MSIAuthentication regression for KeyVault since IMDS support #109
+
 2018-07-02 Version 0.4.34
 +++++++++++++++++++++++++
 
