@@ -541,7 +541,6 @@ class TestServicePrincipalCredentials(unittest.TestCase):
                                content_type="application/json")
 
         credentials = MSIAuthentication()
-        credentials.set_token()
         assert credentials.scheme == "TokenTypeIMDS"
         assert credentials.token == json_payload
 
@@ -558,7 +557,6 @@ class TestServicePrincipalCredentials(unittest.TestCase):
 
         with mock.patch('os.environ', {'MSI_ENDPOINT': 'http://random.org/yadadada'}):
             credentials = MSIAuthentication()
-            credentials.set_token()
             assert credentials.scheme == "TokenTypeMSI_ENDPOINT"
             assert credentials.token == json_payload
 
@@ -580,7 +578,6 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         }
         with mock.patch.dict('os.environ', app_service_env):
             credentials = MSIAuthentication(resource="foo")
-            credentials.set_token()
             assert credentials.scheme == "TokenTypeWebApp"
             assert credentials.token == json_payload
 
@@ -606,7 +603,6 @@ class TestServicePrincipalCredentials(unittest.TestCase):
                                body=json.dumps(json_payload),
                                content_type="application/json")
         credentials = MSIAuthentication()
-        credentials.set_token()
         assert credentials.scheme == "TokenTypeIMDS"
         assert credentials.token == json_payload
 
@@ -617,9 +613,8 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         httpretty.register_uri(httpretty.GET,
                                'http://169.254.169.254/metadata/identity/oauth2/token',
                                status=499)
-        credentials = MSIAuthentication()
         with self.assertRaises(HTTPError) as cm:
-            credentials.set_token()
+            credentials = MSIAuthentication()
 
 
 @pytest.mark.slow

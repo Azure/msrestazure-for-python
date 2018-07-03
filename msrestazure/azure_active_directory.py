@@ -657,7 +657,9 @@ class MSIAuthentication(BasicTokenAuthentication):
                 raise AuthenticationError("User Assigned Entity is not available on WebApp yet.")
         elif "MSI_ENDPOINT" not in os.environ:
             # Use IMDS if no MSI_ENDPOINT
-            self._vm_msi = _ImdsTokenProvider(self.resource, self.msi_conf)
+            self._vm_msi = _ImdsTokenProvider(self.msi_conf)
+        # Follow the same convention as all Credentials class to check for the token at creation time #106
+        self.set_token()
 
     def set_token(self):
         if _is_app_service():
@@ -665,7 +667,7 @@ class MSIAuthentication(BasicTokenAuthentication):
         elif "MSI_ENDPOINT" in os.environ:
             self.scheme, _, self.token = get_msi_token(self.resource, self.port, self.msi_conf)
         else:
-            token_entry = self._vm_msi.get_token()
+            token_entry = self._vm_msi.get_token(self.resource)
             self.scheme, self.token = token_entry['token_type'], token_entry
 
     def signed_session(self, session=None):
@@ -687,7 +689,7 @@ class _ImdsTokenProvider(object):
     """A help class handling token acquisitions through Azure IMDS plugin.
     """
 
-    def __init__(self, resource, msi_conf=None):
+    def __init__(self, msi_conf=None):
         self._user_agent = AzureConfiguration(None).user_agent
         self.identity_type, self.identity_id = None, None
         if msi_conf:
@@ -698,12 +700,11 @@ class _ImdsTokenProvider(object):
         # default to system assigned identity on an empty configuration object
 
         self.cache = {}
-        self.resource = resource
 
-    def get_token(self):
+    def get_token(self, resource):
         import datetime
         # let us hit the cache first
-        token_entry = self.cache.get(self.resource, None)
+        token_entry = self.cache.get(resource, None)
         if token_entry:
             expires_on = int(token_entry['expires_on'])
             expires_on_datetime = datetime.datetime.fromtimestamp(expires_on)
@@ -712,19 +713,19 @@ class _ImdsTokenProvider(object):
                 _LOGGER.info("MSI: token is found in cache.")
                 return token_entry
             _LOGGER.info("MSI: cache is found but expired within %s minutes, so getting a new one.", expiration_margin)
-            self.cache.pop(self.resource)
+            self.cache.pop(resource)
 
-        token_entry = self._retrieve_token_from_imds_with_retry()
-        self.cache[self.resource] = token_entry
+        token_entry = self._retrieve_token_from_imds_with_retry(resource)
+        self.cache[resource] = token_entry
         return token_entry
 
-    def _retrieve_token_from_imds_with_retry(self):
+    def _retrieve_token_from_imds_with_retry(self, resource):
         import random
         import json
         # 169.254.169.254 is a well known ip address hosting the web service that provides the Azure IMDS metadata
         request_uri = 'http://169.254.169.254/metadata/identity/oauth2/token'
         payload = {
-            'resource': self.resource,
+            'resource': resource,
             'api-version': '2018-02-01'
         }
         if self.identity_id:

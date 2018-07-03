@@ -28,7 +28,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='msrestazure',
-    version='0.4.33',
+    version='0.4.34',
     author='Microsoft Corporation',
     author_email='azpysdkhelp@microsoft.com',
     packages=find_packages(exclude=["tests", "tests.*"]),
@@ -46,6 +46,7 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'License :: OSI Approved :: MIT License',
         'Topic :: Software Development'],
     install_requires=[
