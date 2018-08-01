@@ -39,12 +39,6 @@ import adal
 from requests import RequestException, ConnectionError, HTTPError
 import requests
 
-try:
-    import keyring
-except Exception as err:
-    keyring = False
-    KEYRING_EXCEPTION = err
-
 from msrest.authentication import OAuthTokenAuthentication, Authentication, BasicTokenAuthentication
 from msrest.exceptions import TokenExpiredError as Expired
 from msrest.exceptions import AuthenticationError, raise_with_traceback
@@ -54,9 +48,6 @@ from msrestazure.azure_configuration import AzureConfiguration
 
 _LOGGER = logging.getLogger(__name__)
 
-if not keyring:
-    _LOGGER.warning("Cannot load 'keyring' on your system (either not installed, or not configured correctly): %s", KEYRING_EXCEPTION)
-
 class AADMixin(OAuthTokenAuthentication):
     """Mixin for Authentication object.
     Provides some AAD functionality:
@@ -64,7 +55,6 @@ class AADMixin(OAuthTokenAuthentication):
     - Token caching and retrieval
     - Default AAD configuration
     """
-    _keyring = "AzureAAD"
     _case = re.compile('([a-z0-9])([A-Z])')
 
     def _configure(self, **kwargs):
@@ -79,7 +69,6 @@ class AADMixin(OAuthTokenAuthentication):
             - resource (str): Alternative authentication resource, default
               is 'https://management.core.windows.net/'.
             - verify (bool): Verify secure connection, default is 'True'.
-            - keyring (str): Name of local token cache, default is 'AzureAAD'.
             - timeout (int): Timeout of the request in seconds.
             - proxies (dict): Dictionary mapping protocol or protocol and
               hostname to the URL of the proxy.
@@ -101,7 +90,6 @@ class AADMixin(OAuthTokenAuthentication):
 
         self._tenant = kwargs.get('tenant', "common")
         self._verify = kwargs.get('verify')  # 'None' will honor ADAL_PYTHON_SSL_NO_VERIFY
-        self.cred_store = kwargs.get('keyring', self._keyring)
         self.resource = kwargs.get('resource', resource)
         self._proxies = kwargs.get('proxies')
         self._timeout = kwargs.get('timeout')
@@ -194,31 +182,6 @@ class AADMixin(OAuthTokenAuthentication):
             countdown = float(self.token['expires_at']) - time.time()
             self.token['expires_in'] = countdown
 
-    def _default_token_cache(self, token):
-        """Store token for future sessions.
-
-        :param dict token: An authentication token.
-        :rtype: None
-        """
-        self.token = token
-        if keyring:
-            try:
-                keyring.set_password(self.cred_store, self.store_key, str(token))
-            except Exception as err:
-                _LOGGER.warning("Keyring cache token has failed: %s", str(err))
-
-    def _retrieve_stored_token(self):
-        """Retrieve stored token for new session.
-
-        :raises: ValueError if no cached token found.
-        :rtype: dict
-        :return: Retrieved token.
-        """
-        token = keyring.get_password(self.cred_store, self.store_key)
-        if token is None:
-            raise ValueError("No stored token found.")
-        self.token = ast.literal_eval(str(token))
-
     def set_token(self):
         if not self._context:
             self._create_adal_context()
@@ -257,20 +220,9 @@ class AADMixin(OAuthTokenAuthentication):
                     self.secret # This is needed when using Confidential Client
                 )
                 self.token = self._convert_token(token)
-                self._default_token_cache(self.token)
             except adal.AdalError as err:
                 raise_with_traceback(AuthenticationError, "", err)
         return self.signed_session(session)
-
-    def clear_cached_token(self):
-        """Clear any stored tokens.
-
-        :raises: KeyError if failed to clear token.
-        """
-        try:
-            keyring.delete_password(self.cred_store, self.store_key)
-        except keyring.errors.PasswordDeleteError:
-            raise_with_traceback(KeyError, "Unable to clear token.")
 
 
 class AADTokenCredentials(AADMixin):
@@ -291,7 +243,6 @@ class AADTokenCredentials(AADMixin):
     - resource (str): Alternative authentication resource, default
       is 'https://management.core.windows.net/'.
     - verify (bool): Verify secure connection, default is 'True'.
-    - keyring (str): Name of local token cache, default is 'AzureAAD'.
     - cached (bool): Reserved keyword. Should not be used.
     - cache (adal.TokenCache): A adal.TokenCache, see ADAL configuration
     for details. This parameter is not used here and directly passed to ADAL.
@@ -309,17 +260,7 @@ class AADTokenCredentials(AADMixin):
         super(AADTokenCredentials, self).__init__(client_id, None)
         self._configure(**kwargs)
         self.client = None
-        if not kwargs.get('cached'):
-            self.token = self._convert_token(token)
-
-    @classmethod
-    def retrieve_session(cls, client_id=None):
-        """Create AADTokenCredentials from a cached token if it has not
-        yet expired.
-        """
-        session = cls(None, client_id=client_id, cached=True)
-        session._retrieve_stored_token()
-        return session
+        self.token = self._convert_token(token)
 
 
 class UserPassCredentials(AADMixin):
@@ -339,7 +280,6 @@ class UserPassCredentials(AADMixin):
     - resource (str): Alternative authentication resource, default
       is 'https://management.core.windows.net/'.
     - verify (bool): Verify secure connection, default is 'True'.
-    - keyring (str): Name of local token cache, default is 'AzureAAD'.
     - timeout (int): Timeout of the request in seconds.
     - proxies (dict): Dictionary mapping protocol or protocol and
       hostname to the URL of the proxy.
@@ -366,17 +306,7 @@ class UserPassCredentials(AADMixin):
         self.username = username
         self.password = password
         self.secret = secret
-        if not kwargs.get('cached'):
-            self.set_token()
-
-    @classmethod
-    def retrieve_session(cls, username, client_id=None):
-        """Create ServicePrincipalCredentials from a cached token if it has not
-        yet expired.
-        """
-        session = cls(username, None, client_id=client_id, cached=True)
-        session._retrieve_stored_token()
-        return session
+        self.set_token()
 
 
     def set_token(self):
@@ -393,7 +323,6 @@ class UserPassCredentials(AADMixin):
                 self.id
             )
             self.token = self._convert_token(token)
-            self._default_token_cache(self.token)
         except adal.AdalError as err:
             raise_with_traceback(AuthenticationError, "", err)
 
@@ -410,7 +339,6 @@ class ServicePrincipalCredentials(AADMixin):
     - resource (str): Alternative authentication resource, default
       is 'https://management.core.windows.net/'.
     - verify (bool): Verify secure connection, default is 'True'.
-    - keyring (str): Name of local token cache, default is 'AzureAAD'.
     - timeout (int): Timeout of the request in seconds.
     - proxies (dict): Dictionary mapping protocol or protocol and
       hostname to the URL of the proxy.
@@ -426,17 +354,7 @@ class ServicePrincipalCredentials(AADMixin):
         self._configure(**kwargs)
 
         self.secret = secret
-        if not kwargs.get('cached'):
-            self.set_token()
-
-    @classmethod
-    def retrieve_session(cls, client_id):
-        """Create ServicePrincipalCredentials from a cached token if it has not
-        yet expired.
-        """
-        session = cls(client_id, None, cached=True)
-        session._retrieve_stored_token()
-        return session
+        self.set_token()
 
     def set_token(self):
         """Get token using Client ID/Secret credentials.
@@ -451,7 +369,6 @@ class ServicePrincipalCredentials(AADMixin):
                 self.secret
             )
             self.token = self._convert_token(token)
-            self._default_token_cache(self.token)
         except adal.AdalError as err:
             raise_with_traceback(AuthenticationError, "", err)
 
