@@ -20,6 +20,23 @@ To install:
 Release History
 ---------------
 
+2018-XX-XX Version 0.5.0
+++++++++++++++++++++++++
+
+**Features**
+
+- Implementation is now using ADAL and not request-oauthlib. This allows more AD scenarios (like federated)
+- Expose ADAL token cache system as API
+
+**Breaking changes**
+
+These breaking changes applies to ServicePrincipalCredentials, UserPassCredentials, AADTokenCredentials
+
+- Remove "auth_uri" attribute and parameter. This was unused.
+- Remove "state" attribute. This was unused.
+- Remove "client" attribute. This was exposed by mistake and should have been internal. No replacement is possible.
+- Remove "token_uri" attribute and parameter. Use "cloud_environment" and "tenant" to impact the login url now.
+
 2018-07-03 Version 0.4.35
 +++++++++++++++++++++++++
 
