@@ -36,6 +36,11 @@ These breaking changes applies to ServicePrincipalCredentials, UserPassCredentia
 - Remove "state" attribute. This was unused.
 - Remove "client" attribute. This was exposed by mistake and should have been internal. No replacement is possible.
 - Remove "token_uri" attribute and parameter. Use "cloud_environment" and "tenant" to impact the login url now.
+- Remove token caching based on "keyring". Token caching should be implemented using ADAL now. This implies:
+
+  - Remove the "keyring" parameter
+  - Remove the "clear_cached_token" method
+  - Remove the "retrieve_session" method
 
 2018-07-03 Version 0.4.35
 +++++++++++++++++++++++++
