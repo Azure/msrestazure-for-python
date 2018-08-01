@@ -23,7 +23,6 @@
 # THE SOFTWARE.
 #
 #--------------------------------------------------------------------------
-import datetime
 import json
 import sys
 import time
@@ -33,14 +32,11 @@ try:
 except ImportError:
     import mock
 
-from requests import HTTPError, Session
-from requests_oauthlib import OAuth2Session
+from requests import HTTPError, Session, ConnectionError
 import oauthlib
 import adal
 import httpretty
 
-from msrestazure import AzureConfiguration
-from msrestazure import azure_active_directory
 from msrestazure.azure_active_directory import (
     AADMixin,
     ServicePrincipalCredentials,
@@ -51,68 +47,12 @@ from msrestazure.azure_active_directory import (
     get_msi_token,
     get_msi_token_webapp
 )
+from msrestazure.azure_cloud import AZURE_CHINA_CLOUD
 from msrest.exceptions import TokenExpiredError, AuthenticationError
-from requests import ConnectionError, HTTPError
 
 import pytest
 
 class TestServicePrincipalCredentials(unittest.TestCase):
-
-    def setUp(self):
-        self.cfg = AzureConfiguration("https://my_service.com")
-        return super(TestServicePrincipalCredentials, self).setUp()
-
-    def test_http(self):
-
-        test_uri = "http://my_service.com"
-        build = azure_active_directory._http(test_uri, "path")
-
-        self.assertEqual(build, "http://my_service.com/path")
-
-        test_uri = "HTTPS://my_service.com"
-        build = azure_active_directory._http(test_uri, "path")
-
-        self.assertEqual(build, "http://my_service.com/path")
-
-        test_uri = "my_service.com"
-        build = azure_active_directory._http(test_uri, "path")
-
-        self.assertEqual(build, "http://my_service.com/path")
-
-    def test_https(self):
-
-        test_uri = "http://my_service.com"
-        build = azure_active_directory._https(test_uri, "path")
-
-        self.assertEqual(build, "https://my_service.com/path")
-
-        test_uri = "HTTPS://my_service.com"
-        build = azure_active_directory._https(test_uri, "path")
-
-        self.assertEqual(build, "https://my_service.com/path")
-
-        test_uri = "my_service.com"
-        build = azure_active_directory._https(test_uri, "path")
-
-        self.assertEqual(build, "https://my_service.com/path")
-
-
-    def test_check_state(self):
-
-        mix = AADMixin(None, None)
-        mix.state = "abc"
-
-        with self.assertRaises(ValueError):
-            mix._check_state("server?test")
-        with self.assertRaises(ValueError):
-            mix._check_state("server?test&abc")
-        with self.assertRaises(ValueError):
-            mix._check_state("server?test&state=xyx")
-        with self.assertRaises(ValueError):
-            mix._check_state("server?test&state=xyx&")
-        with self.assertRaises(ValueError):
-            mix._check_state("server?test&state=abcd&")
-        mix._check_state("server?test&state=abc&")
 
     def test_convert_token(self):
 
@@ -199,140 +139,322 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         with self.assertRaises(TokenExpiredError):
             ServicePrincipalCredentials.retrieve_session("client_id")
 
-    def test_service_principal(self):
+    @mock.patch("adal.AuthenticationContext")
+    def test_property(self, adal_context):
 
-        creds = mock.create_autospec(ServicePrincipalCredentials)
-        session = mock.create_autospec(OAuth2Session)
-        session.__enter__.return_value = session
-        creds._setup_session.return_value = session
+        adal_context.acquire_token_with_client_credentials = mock.Mock()
 
-        session.fetch_token.return_value = {
-            'expires_at':'1',
-            'expires_in':'2'}
+        creds = ServicePrincipalCredentials(
+            123,
+            'secret',
+            tenant="private"
+        )  # Implicit set_token call
 
-        creds.token_uri = "token_uri"
-        creds.verify = True
-        creds.id = 123
-        creds.secret = 'secret'
-        creds.resource = 'resource'
-        creds.timeout = 12
-        mock_proxies = {
-            'http': 'http://myproxy:8080',
-            'https': 'https://myproxy:8080',
-        }
-        creds.proxies = mock_proxies
-
-        ServicePrincipalCredentials.set_token(creds)
-        self.assertEqual(creds.token, session.fetch_token.return_value)
-        session.fetch_token.assert_called_with(
-            "token_uri", client_id=123, client_secret='secret',
-            resource='resource', response_type="client_credentials",
-            verify=True, timeout=12, proxies=mock_proxies)
-
-        session.fetch_token.side_effect = oauthlib.oauth2.OAuth2Error
-
-        with self.assertRaises(AuthenticationError):
-            ServicePrincipalCredentials.set_token(creds)
-
-        session = mock.create_autospec(OAuth2Session)
-        session.__enter__.return_value = session
-        with mock.patch.object(
-            ServicePrincipalCredentials, '_setup_session', return_value=session):
-
-            proxies = {'http': 'http://myproxy:80'}
-            creds = ServicePrincipalCredentials("client_id", "secret",
-                                                verify=False, tenant="private",
-                                                proxies=proxies)
-
-            session.fetch_token.assert_called_with(
-                "https://login.microsoftonline.com/private/oauth2/token",
-                client_id="client_id",
-                client_secret='secret',
-                resource='https://management.core.windows.net/',
-                response_type="client_credentials",
-                verify=False,
-                timeout=None,
-                proxies=proxies,
-            )
-
-        with mock.patch.object(
-            ServicePrincipalCredentials, '_setup_session', return_value=session):
-
-            creds = ServicePrincipalCredentials("client_id", "secret", china=True,
-                                                verify=False, tenant="private")
-
-            session.fetch_token.assert_called_with(
-                "https://login.chinacloudapi.cn/private/oauth2/token",
-                client_id="client_id", client_secret='secret',
-                resource='https://management.core.chinacloudapi.cn/',
-                response_type="client_credentials", verify=False, proxies=None, timeout=None)
-
-    def test_user_pass_credentials(self):
-
-        creds = mock.create_autospec(UserPassCredentials)
-        session = mock.create_autospec(OAuth2Session)
-        session.__enter__.return_value = session
-        creds._setup_session.return_value = session
-
-        session.fetch_token.return_value = {
-            'expires_at':'1',
-            'expires_in':'2'}
-
-        creds.token_uri = "token_uri"
-        creds.verify = True
-        creds.username = "user"
-        creds.password = 'pass'
-        creds.secret = 'secret'
-        creds.resource = 'resource'
-        creds.timeout = 12
-        creds.id = "id"
-        mock_proxies = {
-            'http': 'http://myproxy:8080',
-            'https': 'https://myproxy:8080',
-        }
-        creds.proxies = mock_proxies
-
-        UserPassCredentials.set_token(creds)
-        self.assertEqual(creds.token, session.fetch_token.return_value)
-        session.fetch_token.assert_called_with(
-            "token_uri", client_id="id", username='user',
-            client_secret="secret", password='pass', resource='resource', verify=True,
-            timeout=12, proxies=mock_proxies
+        adal_context.assert_called_with(
+            "https://login.microsoftonline.com/private",
+            timeout=None,
+            verify_ssl=None,
+            proxies=None,
+            validate_authority=True,
+            cache=None,
+            api_version=None
         )
 
-        session.fetch_token.side_effect = oauthlib.oauth2.OAuth2Error
+        creds.timeout = 12
+        assert creds._context is None
+        creds.set_token()
+        adal_context.assert_called_with(
+            "https://login.microsoftonline.com/private",
+            timeout=12,
+            verify_ssl=None,
+            proxies=None,
+            validate_authority=True,
+            cache=None,
+            api_version=None
+        )
+
+        creds.verify = True
+        assert creds._context is None
+        creds.set_token()
+        adal_context.assert_called_with(
+            "https://login.microsoftonline.com/private",
+            timeout=12,
+            verify_ssl=True,
+            proxies=None,
+            validate_authority=True,
+            cache=None,
+            api_version=None
+        )
+
+        creds.proxies = {}
+        assert creds._context is None
+        creds.set_token()
+        adal_context.assert_called_with(
+            "https://login.microsoftonline.com/private",
+            timeout=12,
+            verify_ssl=True,
+            proxies={},
+            validate_authority=True,
+            cache=None,
+            api_version=None
+        )
+
+        creds.cloud_environment = AZURE_CHINA_CLOUD
+        assert creds._context is None
+        creds.set_token()
+        adal_context.assert_called_with(
+            "https://login.chinacloudapi.cn/private",
+            timeout=12,
+            verify_ssl=True,
+            proxies={},
+            validate_authority=True,
+            cache=None,
+            api_version=None
+        )
+
+    @mock.patch("adal.AuthenticationContext")
+    def test_service_principal(self, adal_context):
+
+        adal_context.acquire_token_with_client_credentials = mock.Mock()
+
+        # Basic with parameters
+
+        mock_proxies = {
+            'http': 'http://myproxy:8080',
+            'https': 'https://myproxy:8080',
+        }
+
+        creds = ServicePrincipalCredentials(
+            123,
+            'secret',
+            resource="resource",
+            timeout=12,
+            verify=True,
+            proxies=mock_proxies
+        )
+
+        adal_context.assert_called_with(
+            "https://login.microsoftonline.com/common",
+            timeout=12,
+            verify_ssl=True,
+            proxies=mock_proxies,
+            validate_authority=True,
+            cache=None,
+            api_version=None
+        )
+
+        creds.set_token()
+
+        creds._context.acquire_token_with_client_credentials.assert_called_with(
+            "resource",
+            123,
+            "secret"
+        )
+
+        # Using default
+
+        creds = ServicePrincipalCredentials(
+            123,
+            'secret',
+            tenant="private"
+        )
+
+        adal_context.assert_called_with(
+            "https://login.microsoftonline.com/private",
+            timeout=None,
+            verify_ssl=None,
+            proxies=None,
+            validate_authority=True,
+            cache=None,
+            api_version=None
+        )
+        creds.set_token()
+        creds._context.acquire_token_with_client_credentials.assert_called_with(
+            "https://management.core.windows.net/",
+            123,
+            "secret"
+        )
+
+        # Testing cloud_environment
+
+        creds = ServicePrincipalCredentials(
+            123,
+            'secret',
+            cloud_environment=AZURE_CHINA_CLOUD
+        )
+
+        adal_context.assert_called_with(
+            "https://login.chinacloudapi.cn/common",
+            timeout=None,
+            verify_ssl=None,
+            proxies=None,
+            validate_authority=True,
+            cache=None,
+            api_version=None
+        )
+        creds.set_token()
+        creds._context.acquire_token_with_client_credentials.assert_called_with(
+            "https://management.core.chinacloudapi.cn/",
+            123,
+            "secret"
+        )
+
+        # Testing china=True
+
+        creds = ServicePrincipalCredentials(
+            123,
+            'secret',
+            china=True
+        )
+
+        adal_context.assert_called_with(
+            "https://login.chinacloudapi.cn/common",
+            timeout=None,
+            verify_ssl=None,
+            proxies=None,
+            validate_authority=True,
+            cache=None,
+            api_version=None
+        )
+        creds.set_token()
+        creds._context.acquire_token_with_client_credentials.assert_called_with(
+            "https://management.core.chinacloudapi.cn/",
+            123,
+            "secret"
+        )
+
+        # ADAL boom
+
+        creds._context.acquire_token_with_client_credentials.side_effect = adal.AdalError("Boom")
 
         with self.assertRaises(AuthenticationError):
-            UserPassCredentials.set_token(creds)
+            creds.set_token()
 
-        session = mock.create_autospec(OAuth2Session)
-        session.__enter__.return_value = session
-        with mock.patch.object(
-            UserPassCredentials, '_setup_session', return_value=session):
+    @mock.patch("adal.AuthenticationContext")
+    def test_user_pass_credentials(self, adal_context):
 
-            proxies = {'http': 'http://myproxy:8080'}
-            creds = UserPassCredentials("my_username", "my_password",
-                                        verify=False, tenant="private", resource='resource',
-                                        proxies=proxies)
+        adal_context.acquire_token_with_username_password = mock.Mock()
 
-            session.fetch_token.assert_called_with(
-                "https://login.microsoftonline.com/private/oauth2/token",
-                client_id='04b07795-8ddb-461a-bbee-02f9e1bf7b46', username='my_username',
-                password='my_password', resource='resource', verify=False,
-                proxies=proxies, timeout=None
-            )
+        # Basic with parameters
 
-        with mock.patch.object(
-            UserPassCredentials, '_setup_session', return_value=session):
+        mock_proxies = {
+            'http': 'http://myproxy:8080',
+            'https': 'https://myproxy:8080',
+        }
 
-            creds = UserPassCredentials("my_username", "my_password", client_id="client_id",
-                                        verify=False, tenant="private", china=True)
+        creds = UserPassCredentials(
+            'user',
+            'pass',
+            'id',
+            resource="resource",
+            timeout=12,
+            verify=True,
+            validate_authority=True,
+            cache=None,
+            proxies=mock_proxies
+        )
 
-            session.fetch_token.assert_called_with(
-                "https://login.chinacloudapi.cn/private/oauth2/token",
-                client_id="client_id", username='my_username',
-                password='my_password', resource='https://management.core.chinacloudapi.cn/',
-                verify=False, proxies=None, timeout=None)
+        adal_context.assert_called_with(
+            "https://login.microsoftonline.com/common",
+            timeout=12,
+            verify_ssl=True,
+            proxies=mock_proxies,
+            validate_authority=True,
+            cache=None,
+            api_version=None
+        )
+
+        creds.set_token()
+
+        creds._context.acquire_token_with_username_password.assert_called_with(
+            "resource",
+            "user",
+            "pass",
+            "id"
+        )
+
+        # Using default
+
+        creds = UserPassCredentials(
+            'user',
+            'pass',
+        )
+
+        adal_context.assert_called_with(
+            "https://login.microsoftonline.com/common",
+            timeout=None,
+            verify_ssl=None,
+            proxies=None,
+            validate_authority=True,
+            cache=None,
+            api_version=None
+        )
+
+        creds.set_token()
+
+        creds._context.acquire_token_with_username_password.assert_called_with(
+            "https://management.core.windows.net/",
+            "user",
+            "pass",
+            "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+        )
+
+        # Testing cloud_environment
+
+        creds = UserPassCredentials(
+            'user',
+            'pass',
+            cloud_environment=AZURE_CHINA_CLOUD
+        )
+
+        adal_context.assert_called_with(
+            "https://login.chinacloudapi.cn/common",
+            timeout=None,
+            verify_ssl=None,
+            proxies=None,
+            validate_authority=True,
+            cache=None,
+            api_version=None
+        )
+        creds.set_token()
+        creds._context.acquire_token_with_username_password.assert_called_with(
+            "https://management.core.chinacloudapi.cn/",
+            "user",
+            "pass",
+            "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+        )
+
+        # Testing china=True
+
+        creds = UserPassCredentials(
+            'user',
+            'pass',
+            china=True
+        )
+
+        adal_context.assert_called_with(
+            "https://login.chinacloudapi.cn/common",
+            timeout=None,
+            verify_ssl=None,
+            proxies=None,
+            validate_authority=True,
+            cache=None,
+            api_version=None
+        )
+        creds.set_token()
+        creds._context.acquire_token_with_username_password.assert_called_with(
+            "https://management.core.chinacloudapi.cn/",
+            "user",
+            "pass",
+            "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+        )
+
+        # ADAL boom
+
+        creds._context.acquire_token_with_username_password.side_effect = adal.AdalError("Boom")
+
+        with self.assertRaises(AuthenticationError):
+            creds.set_token()
 
     def test_adal_authentication(self):
         def success_auth():
@@ -507,12 +629,13 @@ def test_refresh_userpassword_no_common_session(user_password):
     response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
     response.raise_for_status() # Should never raise
 
-    # Hacking the token time
-    creds.token['expires_on'] = time.time() - 10
-    creds.token['expires_at'] = creds.token['expires_on']
-
     try:
         session = creds.signed_session()
+        # Hacking the token time
+        session.auth._client.token['expires_in'] = session.auth._client.expires_in = -10
+        session.auth._client.token['expires_on'] = session.auth._client.expires_on = time.time() -10
+        session.auth._client.token['expires_at'] = session.auth._client.expires_at = session.auth._client._expires_at = session.auth._client.expires_on
+
         response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
         pytest.fail("Requests should have failed")
     except oauthlib.oauth2.rfc6749.errors.TokenExpiredError:
@@ -533,12 +656,13 @@ def test_refresh_userpassword_common_session(user_password):
     response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
     response.raise_for_status() # Should never raise
 
-    # Hacking the token time
-    creds.token['expires_on'] = time.time() - 10
-    creds.token['expires_at'] = creds.token['expires_on']
-
     try:
         session = creds.signed_session(root_session)
+        # Hacking the token time
+        session.auth._client.token['expires_in'] = session.auth._client.expires_in = -10
+        session.auth._client.token['expires_on'] = session.auth._client.expires_on = time.time() -10
+        session.auth._client.token['expires_at'] = session.auth._client.expires_at = session.auth._client._expires_at = session.auth._client.expires_on
+
         response = session.get("https://management.azure.com/subscriptions?api-version=2016-06-01")
         pytest.fail("Requests should have failed")
     except oauthlib.oauth2.rfc6749.errors.TokenExpiredError:
