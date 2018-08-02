@@ -243,7 +243,6 @@ class AADTokenCredentials(AADMixin):
     - resource (str): Alternative authentication resource, default
       is 'https://management.core.windows.net/'.
     - verify (bool): Verify secure connection, default is 'True'.
-    - cached (bool): Reserved keyword. Should not be used.
     - cache (adal.TokenCache): A adal.TokenCache, see ADAL configuration
     for details. This parameter is not used here and directly passed to ADAL.
 
@@ -283,7 +282,6 @@ class UserPassCredentials(AADMixin):
     - timeout (int): Timeout of the request in seconds.
     - proxies (dict): Dictionary mapping protocol or protocol and
       hostname to the URL of the proxy.
-    - cached (bool): Reserved keyword. Should not be used.
     - cache (adal.TokenCache): A adal.TokenCache, see ADAL configuration
     for details. This parameter is not used here and directly passed to ADAL.
 
@@ -342,7 +340,6 @@ class ServicePrincipalCredentials(AADMixin):
     - timeout (int): Timeout of the request in seconds.
     - proxies (dict): Dictionary mapping protocol or protocol and
       hostname to the URL of the proxy.
-    - cached (bool): Reserved keyword. Should not be used.
     - cache (adal.TokenCache): A adal.TokenCache, see ADAL configuration
     for details. This parameter is not used here and directly passed to ADAL.
 
