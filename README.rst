@@ -20,7 +20,7 @@ To install:
 Release History
 ---------------
 
-2018-XX-XX Version 0.5.0
+2018-08-02 Version 0.5.0
 ++++++++++++++++++++++++
 
 **Features**
