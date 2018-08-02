@@ -25,8 +25,8 @@ Release History
 
 **Features**
 
-- Implementation is now using ADAL and not request-oauthlib. This allows more AD scenarios (like federated)
-- Expose ADAL token cache system as API
+- Implementation is now using ADAL and not request-oauthlib. This allows more AD scenarios (like federated)  #94
+- Add additionalInfo parsing for CloudError #102
 
 **Breaking changes**
 
