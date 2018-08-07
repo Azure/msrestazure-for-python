@@ -20,6 +20,52 @@ To install:
 Release History
 ---------------
 
+2018-08-02 Version 0.5.0
+++++++++++++++++++++++++
+
+**Features**
+
+- Implementation is now using ADAL and not request-oauthlib. This allows more AD scenarios (like federated)  #94
+- Add additionalInfo parsing for CloudError #102
+
+**Breaking changes**
+
+These breaking changes applies to ServicePrincipalCredentials, UserPassCredentials, AADTokenCredentials
+
+- Remove "auth_uri" attribute and parameter. This was unused.
+- Remove "state" attribute. This was unused.
+- Remove "client" attribute. This was exposed by mistake and should have been internal. No replacement is possible.
+- Remove "token_uri" attribute and parameter. Use "cloud_environment" and "tenant" to impact the login url now.
+- Remove token caching based on "keyring". Token caching should be implemented using ADAL now. This implies:
+
+  - Remove the "keyring" parameter
+  - Remove the "clear_cached_token" method
+  - Remove the "retrieve_session" method
+
+2018-07-03 Version 0.4.35
++++++++++++++++++++++++++
+
+**Bugfixes**
+
+- MSIAuthentication regression for KeyVault since IMDS support #109
+
+2018-07-02 Version 0.4.34
++++++++++++++++++++++++++
+
+**Bugfixes**
+
+- MSIAuthentication should initialize the token attribute on creation #106
+
+2018-06-21 Version 0.4.33
++++++++++++++++++++++++++
+
+**Bugfixes**
+
+- Fixes refreshToken in UserPassCredentials and AADTokenCredentials #103
+- Fix US government cloud definition #104
+
+Thanks to mjcaley for his contribution
+
 2018-06-13 Version 0.4.32
 +++++++++++++++++++++++++
 

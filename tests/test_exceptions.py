@@ -34,7 +34,7 @@ except ImportError:
 from requests import Response, RequestException
 
 from msrest import Deserializer, Configuration
-from msrestazure.azure_exceptions import CloudErrorData, CloudError
+from msrestazure.azure_exceptions import CloudErrorData, CloudError, TypedErrorInfo
 
 
 class TestCloudException(unittest.TestCase):
@@ -42,7 +42,10 @@ class TestCloudException(unittest.TestCase):
     def setUp(self):
         self.cfg = Configuration("https://my_endpoint.com")
         self._d = Deserializer()
-        self._d.dependencies = {'CloudErrorData': CloudErrorData}
+        self._d.dependencies = {
+            'CloudErrorData': CloudErrorData,
+            'TypedErrorInfo': TypedErrorInfo
+        }
         return super(TestCloudException, self).setUp()
 
     def test_cloud_exception(self):
@@ -111,16 +114,70 @@ class TestCloudException(unittest.TestCase):
                     "message": "$search query option not supported",
                 }
             ],
-            "innererror": {
-                "customKey": "customValue"
-            }
+            "innererror": { 
+                "customKey": "customValue" 
+            }, 
+            "additionalInfo": [
+                {
+                    "type": "SomeErrorType",
+                    "info": {
+                        "customKey": "customValue"
+                    }
+                }
+            ]
         }
         cloud_exp = self._d(CloudErrorData(), message)
         self.assertEqual(cloud_exp.target, 'query')
         self.assertEqual(cloud_exp.details[0].target, '$search')
-        self.assertEqual(cloud_exp.innererror['customKey'], 'customValue')
+        self.assertEqual(cloud_exp.innererror['customKey'], 'customValue') 
+        self.assertEqual(cloud_exp.additionalInfo[0].type, 'SomeErrorType')
+        self.assertEqual(cloud_exp.additionalInfo[0].info['customKey'], 'customValue')
         self.assertIn('customValue', str(cloud_exp))
 
+        message = {
+            "code": "BadArgument",
+            "message": "The provided database 'foo' has an invalid username.",
+            "target": "query",
+            "details": [
+                {
+                    "code": "301",
+                    "target": "$search",
+                    "message": "$search query option not supported",
+                    "additionalInfo": [
+                        {
+                            "type": "PolicyViolation",
+                            "info": {
+                                "policyDefinitionDisplayName": "Allowed locations",
+                                "policyAssignmentParameters": {
+                                    "listOfAllowedLocations": {
+                                        "value": [
+                                            "westus"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            ],
+            "additionalInfo": [
+                {
+                    "type": "SomeErrorType",
+                    "info": {
+                        "customKey": "customValue"
+                    }
+                }
+            ]
+        }
+        cloud_exp = self._d(CloudErrorData(), message)
+        self.assertEqual(cloud_exp.target, 'query')
+        self.assertEqual(cloud_exp.details[0].target, '$search')
+        self.assertEqual(cloud_exp.additionalInfo[0].type, 'SomeErrorType')
+        self.assertEqual(cloud_exp.additionalInfo[0].info['customKey'], 'customValue')
+        self.assertEqual(cloud_exp.details[0].additionalInfo[0].type, 'PolicyViolation')
+        self.assertEqual(cloud_exp.details[0].additionalInfo[0].info['policyDefinitionDisplayName'], 'Allowed locations')
+        self.assertEqual(cloud_exp.details[0].additionalInfo[0].info['policyAssignmentParameters']['listOfAllowedLocations']['value'][0], 'westus')
+        self.assertIn('customValue', str(cloud_exp))
 
 
     def test_cloud_error(self):

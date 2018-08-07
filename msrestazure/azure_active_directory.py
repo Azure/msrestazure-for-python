@@ -36,21 +36,8 @@ except ImportError:
     from urllib.parse import urlparse, parse_qs
 
 import adal
-from oauthlib.oauth2 import BackendApplicationClient, LegacyApplicationClient
-from oauthlib.oauth2.rfc6749.errors import (
-    InvalidGrantError,
-    MismatchingStateError,
-    OAuth2Error,
-    TokenExpiredError)
 from requests import RequestException, ConnectionError, HTTPError
 import requests
-import requests_oauthlib as oauth
-
-try:
-    import keyring
-except Exception as err:
-    keyring = False
-    KEYRING_EXCEPTION = err
 
 from msrest.authentication import OAuthTokenAuthentication, Authentication, BasicTokenAuthentication
 from msrest.exceptions import TokenExpiredError as Expired
@@ -61,65 +48,13 @@ from msrestazure.azure_configuration import AzureConfiguration
 
 _LOGGER = logging.getLogger(__name__)
 
-if not keyring:
-    _LOGGER.warning("Cannot load 'keyring' on your system (either not installed, or not configured correctly): %s", KEYRING_EXCEPTION)
-
-def _build_url(uri, paths, scheme):
-    """Combine URL parts.
-
-    :param str uri: The base URL.
-    :param list paths: List of strings that make up the URL.
-    :param str scheme: The URL scheme, 'http' or 'https'.
-    :rtype: str
-    :return: Combined, formatted URL.
-    """
-    path = [str(p).strip('/') for p in paths]
-    combined_path = '/'.join(path)
-    parsed_url = urlparse(uri)
-    replaced = parsed_url._replace(scheme=scheme)
-    if combined_path:
-        path = '/'.join([replaced.path, combined_path])
-        replaced = replaced._replace(path=path)
-
-    new_url = replaced.geturl()
-    new_url = new_url.replace('///', '//')
-    return new_url
-
-
-def _http(uri, *extra):
-    """Convert https URL to http.
-
-    :param str uri: The base URL.
-    :param str extra: Additional URL paths (optional).
-    :rtype: str
-    :return: An HTTP URL.
-    """
-    return _build_url(uri, extra, 'http')
-
-
-def _https(uri, *extra):
-    """Convert http URL to https.
-
-    :param str uri: The base URL.
-    :param str extra: Additional URL paths (optional).
-    :rtype: str
-    :return: An HTTPS URL.
-    """
-    return _build_url(uri, extra, 'https')
-
-
 class AADMixin(OAuthTokenAuthentication):
     """Mixin for Authentication object.
     Provides some AAD functionality:
 
-    - State validation
     - Token caching and retrieval
     - Default AAD configuration
     """
-    _token_uri = "/oauth2/token"
-    _auth_uri = "/oauth2/authorize"
-    _tenant = "common"
-    _keyring = "AzureAAD"
     _case = re.compile('([a-z0-9])([A-Z])')
 
     def _configure(self, **kwargs):
@@ -131,54 +66,95 @@ class AADMixin(OAuthTokenAuthentication):
             - china (bool): Configure auth for China-based service,
               default is 'False'.
             - tenant (str): Alternative tenant, default is 'common'.
-            - auth_uri (str): Alternative authentication endpoint.
-            - token_uri (str): Alternative token retrieval endpoint.
             - resource (str): Alternative authentication resource, default
               is 'https://management.core.windows.net/'.
             - verify (bool): Verify secure connection, default is 'True'.
-            - keyring (str): Name of local token cache, default is 'AzureAAD'.
             - timeout (int): Timeout of the request in seconds.
             - proxies (dict): Dictionary mapping protocol or protocol and
               hostname to the URL of the proxy.
+            - cache (adal.TokenCache): A adal.TokenCache, see ADAL configuration
+              for details. This parameter is not used here and directly passed to ADAL.
         """
         if kwargs.get('china'):
             err_msg = ("china parameter is deprecated, "
                        "please use "
                        "cloud_environment=msrestazure.azure_cloud.AZURE_CHINA_CLOUD")
             warnings.warn(err_msg, DeprecationWarning)
-            self.cloud_environment = AZURE_CHINA_CLOUD
+            self._cloud_environment = AZURE_CHINA_CLOUD
         else:
-            self.cloud_environment = AZURE_PUBLIC_CLOUD
-        self.cloud_environment = kwargs.get('cloud_environment', self.cloud_environment)
+            self._cloud_environment = AZURE_PUBLIC_CLOUD
+        self._cloud_environment = kwargs.get('cloud_environment', self._cloud_environment)
 
-        auth_endpoint = self.cloud_environment.endpoints.active_directory
-        resource = self.cloud_environment.endpoints.active_directory_resource_id
+        auth_endpoint = self._cloud_environment.endpoints.active_directory
+        resource = self._cloud_environment.endpoints.active_directory_resource_id
 
-        tenant = kwargs.get('tenant', self._tenant)
-        self.auth_uri = kwargs.get('auth_uri', _https(
-            auth_endpoint, tenant, self._auth_uri))
-        self.token_uri = kwargs.get('token_uri', _https(
-            auth_endpoint, tenant, self._token_uri))
-        self.verify = kwargs.get('verify', True)
-        self.cred_store = kwargs.get('keyring', self._keyring)
+        self._tenant = kwargs.get('tenant', "common")
+        self._verify = kwargs.get('verify')  # 'None' will honor ADAL_PYTHON_SSL_NO_VERIFY
         self.resource = kwargs.get('resource', resource)
-        self.proxies = kwargs.get('proxies')
-        self.timeout = kwargs.get('timeout')
-        self.state = oauth.oauth2_session.generate_token()
+        self._proxies = kwargs.get('proxies')
+        self._timeout = kwargs.get('timeout')
+        self._cache = kwargs.get('cache')
         self.store_key = "{}_{}".format(
             auth_endpoint.strip('/'), self.store_key)
+        self.secret = None
+        self._context = None  # Future ADAL context
 
-    def _check_state(self, response):
-        """Validate state returned by AAD server.
+    def _create_adal_context(self):
+        authority_url = self.cloud_environment.endpoints.active_directory
+        is_adfs = bool(re.match('.+(/adfs|/adfs/)$', authority_url, re.I))
+        if is_adfs:
+            authority_url = authority_url.rstrip('/')  # workaround: ADAL is known to reject auth urls with trailing /
+        else:
+            authority_url = authority_url + '/' + self._tenant
 
-        :param str response: URL returned by server redirect.
-        :raises: ValueError if state does not match that of the request.
-        :rtype: None
-        """
-        query = parse_qs(urlparse(response).query)
-        if self.state not in query.get('state', []):
-            raise ValueError(
-                "State received from server does not match that of request.")
+        self._context = adal.AuthenticationContext(
+            authority_url,
+            timeout=self._timeout,
+            verify_ssl=self._verify,
+            proxies=self._proxies,
+            validate_authority=not is_adfs,
+            cache=self._cache,
+            api_version=None
+        )
+
+    def _destroy_adal_context(self):
+        self._context = None
+
+    @property
+    def verify(self):
+        return self._verify
+
+    @verify.setter
+    def verify(self, value):
+        self._verify = value
+        self._destroy_adal_context()
+
+    @property
+    def proxies(self):
+        return self._proxies
+
+    @proxies.setter
+    def proxies(self, value):
+        self._proxies = value
+        self._destroy_adal_context()
+
+    @property
+    def timeout(self):
+        return self._timeout
+
+    @timeout.setter
+    def timeout(self, value):
+        self._timeout = value
+        self._destroy_adal_context()
+
+    @property
+    def cloud_environment(self):
+        return self._cloud_environment
+
+    @cloud_environment.setter
+    def cloud_environment(self, value):
+        self._cloud_environment = value
+        self._destroy_adal_context()
 
     def _convert_token(self, token):
         """Convert token fields from camel case.
@@ -186,6 +162,10 @@ class AADMixin(OAuthTokenAuthentication):
         :param dict token: An authentication token.
         :rtype: dict
         """
+        # Beware that ADAL returns a pointer to its own dict, do
+        # NOT change it in place
+        token = token.copy()
+
         # If it's from ADAL, expiresOn will be in ISO form.
         # Bring it back to float, using expiresIn
         if "expiresOn" in token and "expiresIn" in token:
@@ -202,31 +182,9 @@ class AADMixin(OAuthTokenAuthentication):
             countdown = float(self.token['expires_at']) - time.time()
             self.token['expires_in'] = countdown
 
-    def _default_token_cache(self, token):
-        """Store token for future sessions.
-
-        :param dict token: An authentication token.
-        :rtype: None
-        """
-        self.token = token
-        if keyring:
-            try:
-                keyring.set_password(self.cred_store, self.store_key, str(token))
-            except Exception as err:
-                _LOGGER.warning("Keyring cache token has failed: %s", str(err))
-
-    def _retrieve_stored_token(self):
-        """Retrieve stored token for new session.
-
-        :raises: ValueError if no cached token found.
-        :rtype: dict
-        :return: Retrieved token.
-        """
-        token = keyring.get_password(self.cred_store, self.store_key)
-        if token is None:
-            raise ValueError("No stored token found.")
-        self.token = ast.literal_eval(str(token))
-        self.signed_session()
+    def set_token(self):
+        if not self._context:
+            self._create_adal_context()
 
     def signed_session(self, session=None):
         """Create token-friendly Requests session, using auto-refresh.
@@ -238,15 +196,9 @@ class AADMixin(OAuthTokenAuthentication):
         :param session: The session to configure for authentication
         :type session: requests.Session
         """
+        self.set_token() # Adal does the caching.
         self._parse_token()
         return super(AADMixin, self).signed_session(session)
-
-    def _setup_session(self):
-        """Create token-friendly Requests session.
-
-        :rtype: requests_oauthlib.OAuth2Session
-        """
-        return oauth.OAuth2Session(client=self.client)
 
     def refresh_session(self, session=None):
         """Return updated session if token has expired, attempts to
@@ -260,31 +212,17 @@ class AADMixin(OAuthTokenAuthentication):
         :rtype: requests.Session.
         """
         if 'refresh_token' in self.token:
-            with self._setup_session() as session:
-                try:
-                    token = session.refresh_token(self.token_uri,
-                                                  refresh_token=self.token['refresh_token'],
-                                                  verify=self.verify,
-                                                  proxies=self.proxies,
-                                                  timeout=self.timeout)
-                except (RequestException, OAuth2Error, InvalidGrantError) as err:
-                    raise_with_traceback(AuthenticationError, "", err)
-
-                self.token = token
-                self._default_token_cache(self.token)
-        else:
-            self.set_token()
+            try:
+                token = self._context.acquire_token_with_refresh_token(
+                    self.token['refresh_token'],
+                    self.id,
+                    self.resource,
+                    self.secret # This is needed when using Confidential Client
+                )
+                self.token = self._convert_token(token)
+            except adal.AdalError as err:
+                raise_with_traceback(AuthenticationError, "", err)
         return self.signed_session(session)
-
-    def clear_cached_token(self):
-        """Clear any stored tokens.
-
-        :raises: KeyError if failed to clear token.
-        """
-        try:
-            keyring.delete_password(self.cred_store, self.store_key)
-        except keyring.errors.PasswordDeleteError:
-            raise_with_traceback(KeyError, "Unable to clear token.")
 
 
 class AADTokenCredentials(AADMixin):
@@ -292,20 +230,22 @@ class AADTokenCredentials(AADMixin):
     Credentials objects for AAD token retrieved through external process
     e.g. Python ADAL lib.
 
+    If you just provide "token", refresh will be done on Public Azure with
+    default public Azure "resource". You can set "cloud_environment",
+    "tenant", "resource" and "client_id" to change that behavior.
+
     Optional kwargs may include:
 
     - cloud_environment (msrestazure.azure_cloud.Cloud): A targeted cloud environment
     - china (bool): Configure auth for China-based service,
       default is 'False'.
     - tenant (str): Alternative tenant, default is 'common'.
-    - auth_uri (str): Alternative authentication endpoint.
-    - token_uri (str): Alternative token retrieval endpoint.
     - resource (str): Alternative authentication resource, default
       is 'https://management.core.windows.net/'.
     - verify (bool): Verify secure connection, default is 'True'.
-    - keyring (str): Name of local token cache, default is 'AzureAAD'.
-    - cached (bool): If true, will not attempt to collect a token,
-      which can then be populated later from a cached token.
+    - cache (adal.TokenCache): A adal.TokenCache, see ADAL configuration
+    for details. This parameter is not used here and directly passed to ADAL.
+
 
     :param dict token: Authentication token.
     :param str client_id: Client ID, if not set, Xplat Client ID
@@ -319,18 +259,7 @@ class AADTokenCredentials(AADMixin):
         super(AADTokenCredentials, self).__init__(client_id, None)
         self._configure(**kwargs)
         self.client = None
-        if not kwargs.get('cached'):
-            self.token = self._convert_token(token)
-            self.signed_session()
-
-    @classmethod
-    def retrieve_session(cls, client_id=None):
-        """Create AADTokenCredentials from a cached token if it has not
-        yet expired.
-        """
-        session = cls(None, client_id=client_id, cached=True)
-        session._retrieve_stored_token()
-        return session
+        self.token = self._convert_token(token)
 
 
 class UserPassCredentials(AADMixin):
@@ -347,17 +276,14 @@ class UserPassCredentials(AADMixin):
     - china (bool): Configure auth for China-based service,
       default is 'False'.
     - tenant (str): Alternative tenant, default is 'common'.
-    - auth_uri (str): Alternative authentication endpoint.
-    - token_uri (str): Alternative token retrieval endpoint.
     - resource (str): Alternative authentication resource, default
       is 'https://management.core.windows.net/'.
     - verify (bool): Verify secure connection, default is 'True'.
-    - keyring (str): Name of local token cache, default is 'AzureAAD'.
     - timeout (int): Timeout of the request in seconds.
-    - cached (bool): If true, will not attempt to collect a token,
-      which can then be populated later from a cached token.
     - proxies (dict): Dictionary mapping protocol or protocol and
       hostname to the URL of the proxy.
+    - cache (adal.TokenCache): A adal.TokenCache, see ADAL configuration
+    for details. This parameter is not used here and directly passed to ADAL.
 
     :param str username: Account username.
     :param str password: Account password.
@@ -378,18 +304,7 @@ class UserPassCredentials(AADMixin):
         self.username = username
         self.password = password
         self.secret = secret
-        self.client = LegacyApplicationClient(client_id=self.id)
-        if not kwargs.get('cached'):
-            self.set_token()
-
-    @classmethod
-    def retrieve_session(cls, username, client_id=None):
-        """Create ServicePrincipalCredentials from a cached token if it has not
-        yet expired.
-        """
-        session = cls(username, None, client_id=client_id, cached=True)
-        session._retrieve_stored_token()
-        return session
+        self.set_token()
 
 
     def set_token(self):
@@ -397,26 +312,17 @@ class UserPassCredentials(AADMixin):
 
         :raises: AuthenticationError if credentials invalid, or call fails.
         """
-        with self._setup_session() as session:
-            optional = {}
-            if self.secret:
-                optional['client_secret'] = self.secret
-            try:
-                token = session.fetch_token(self.token_uri,
-                                            client_id=self.id,
-                                            username=self.username,
-                                            password=self.password,
-                                            resource=self.resource,
-                                            verify=self.verify,
-                                            proxies=self.proxies,
-                                            timeout=self.timeout,
-                                            **optional)
-            except (RequestException, OAuth2Error, InvalidGrantError) as err:
-                raise_with_traceback(AuthenticationError, "", err)
-
-            self.token = token
-            self._default_token_cache(self.token)
-
+        super(UserPassCredentials, self).set_token()
+        try:
+            token = self._context.acquire_token_with_username_password(
+                self.resource,
+                self.username,
+                self.password,
+                self.id
+            )
+            self.token = self._convert_token(token)
+        except adal.AdalError as err:
+            raise_with_traceback(AuthenticationError, "", err)
 
 class ServicePrincipalCredentials(AADMixin):
     """Credentials object for Service Principle Authentication.
@@ -428,17 +334,14 @@ class ServicePrincipalCredentials(AADMixin):
     - china (bool): Configure auth for China-based service,
       default is 'False'.
     - tenant (str): Alternative tenant, default is 'common'.
-    - auth_uri (str): Alternative authentication endpoint.
-    - token_uri (str): Alternative token retrieval endpoint.
     - resource (str): Alternative authentication resource, default
       is 'https://management.core.windows.net/'.
     - verify (bool): Verify secure connection, default is 'True'.
-    - keyring (str): Name of local token cache, default is 'AzureAAD'.
     - timeout (int): Timeout of the request in seconds.
-    - cached (bool): If true, will not attempt to collect a token,
-      which can then be populated later from a cached token.
     - proxies (dict): Dictionary mapping protocol or protocol and
       hostname to the URL of the proxy.
+    - cache (adal.TokenCache): A adal.TokenCache, see ADAL configuration
+    for details. This parameter is not used here and directly passed to ADAL.
 
     :param str client_id: Client ID.
     :param str secret: Client secret.
@@ -448,39 +351,23 @@ class ServicePrincipalCredentials(AADMixin):
         self._configure(**kwargs)
 
         self.secret = secret
-        self.client = BackendApplicationClient(self.id)
-        if not kwargs.get('cached'):
-            self.set_token()
-
-    @classmethod
-    def retrieve_session(cls, client_id):
-        """Create ServicePrincipalCredentials from a cached token if it has not
-        yet expired.
-        """
-        session = cls(client_id, None, cached=True)
-        session._retrieve_stored_token()
-        return session
+        self.set_token()
 
     def set_token(self):
         """Get token using Client ID/Secret credentials.
 
         :raises: AuthenticationError if credentials invalid, or call fails.
         """
-        with self._setup_session() as session:
-            try:
-                token = session.fetch_token(self.token_uri,
-                                            client_id=self.id,
-                                            resource=self.resource,
-                                            client_secret=self.secret,
-                                            response_type="client_credentials",
-                                            verify=self.verify,
-                                            timeout=self.timeout,
-                                            proxies=self.proxies)
-            except (RequestException, OAuth2Error, InvalidGrantError) as err:
-                raise_with_traceback(AuthenticationError, "", err)
-            else:
-                self.token = token
-                self._default_token_cache(self.token)
+        super(ServicePrincipalCredentials, self).set_token()
+        try:
+            token = self._context.acquire_token_with_client_credentials(
+                self.resource,
+                self.id,
+                self.secret
+            )
+            self.token = self._convert_token(token)
+        except adal.AdalError as err:
+            raise_with_traceback(AuthenticationError, "", err)
 
 # For backward compatibility of import, but I doubt someone uses that...
 class InteractiveCredentials(object):
@@ -684,7 +571,9 @@ class MSIAuthentication(BasicTokenAuthentication):
                 raise AuthenticationError("User Assigned Entity is not available on WebApp yet.")
         elif "MSI_ENDPOINT" not in os.environ:
             # Use IMDS if no MSI_ENDPOINT
-            self._vm_msi = _ImdsTokenProvider(self.resource, self.msi_conf)
+            self._vm_msi = _ImdsTokenProvider(self.msi_conf)
+        # Follow the same convention as all Credentials class to check for the token at creation time #106
+        self.set_token()
 
     def set_token(self):
         if _is_app_service():
@@ -692,7 +581,7 @@ class MSIAuthentication(BasicTokenAuthentication):
         elif "MSI_ENDPOINT" in os.environ:
             self.scheme, _, self.token = get_msi_token(self.resource, self.port, self.msi_conf)
         else:
-            token_entry = self._vm_msi.get_token()
+            token_entry = self._vm_msi.get_token(self.resource)
             self.scheme, self.token = token_entry['token_type'], token_entry
 
     def signed_session(self, session=None):
@@ -714,7 +603,7 @@ class _ImdsTokenProvider(object):
     """A help class handling token acquisitions through Azure IMDS plugin.
     """
 
-    def __init__(self, resource, msi_conf=None):
+    def __init__(self, msi_conf=None):
         self._user_agent = AzureConfiguration(None).user_agent
         self.identity_type, self.identity_id = None, None
         if msi_conf:
@@ -725,12 +614,11 @@ class _ImdsTokenProvider(object):
         # default to system assigned identity on an empty configuration object
 
         self.cache = {}
-        self.resource = resource
 
-    def get_token(self):
+    def get_token(self, resource):
         import datetime
         # let us hit the cache first
-        token_entry = self.cache.get(self.resource, None)
+        token_entry = self.cache.get(resource, None)
         if token_entry:
             expires_on = int(token_entry['expires_on'])
             expires_on_datetime = datetime.datetime.fromtimestamp(expires_on)
@@ -739,19 +627,19 @@ class _ImdsTokenProvider(object):
                 _LOGGER.info("MSI: token is found in cache.")
                 return token_entry
             _LOGGER.info("MSI: cache is found but expired within %s minutes, so getting a new one.", expiration_margin)
-            self.cache.pop(self.resource)
+            self.cache.pop(resource)
 
-        token_entry = self._retrieve_token_from_imds_with_retry()
-        self.cache[self.resource] = token_entry
+        token_entry = self._retrieve_token_from_imds_with_retry(resource)
+        self.cache[resource] = token_entry
         return token_entry
 
-    def _retrieve_token_from_imds_with_retry(self):
+    def _retrieve_token_from_imds_with_retry(self, resource):
         import random
         import json
         # 169.254.169.254 is a well known ip address hosting the web service that provides the Azure IMDS metadata
         request_uri = 'http://169.254.169.254/metadata/identity/oauth2/token'
         payload = {
-            'resource': self.resource,
+            'resource': resource,
             'api-version': '2018-02-01'
         }
         if self.identity_id:
