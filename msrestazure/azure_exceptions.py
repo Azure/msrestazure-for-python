@@ -91,14 +91,14 @@ class CloudErrorData(object):
                 error_str += "\n\tMessage: {}".format(error_obj.message)
                 if error_obj.target:
                     error_str += "\n\tTarget: {}".format(error_obj.target)
-                if error_obj.innererror: 
-                    error_str += "\nInner error: {}".format(json.dumps(error_obj.innererror, indent=4)) 
+                if error_obj.innererror:
+                    error_str += "\nInner error: {}".format(json.dumps(error_obj.innererror, indent=4))
                 if error_obj.additionalInfo:
                     error_str += "\n\tAdditional Information:"
                     for error_info in error_obj.additionalInfo:
                         error_str += "\n\t\t{}".format(str(error_info).replace("\n", "\n\t\t"))
-        if self.innererror: 
-            error_str += "\nInner error: {}".format(json.dumps(self.innererror, indent=4)) 
+        if self.innererror:
+            error_str += "\nInner error: {}".format(json.dumps(self.innererror, indent=4))
         if self.additionalInfo:
             error_str += "\nAdditional Information:"
             for error_info in self.additionalInfo:
@@ -168,9 +168,9 @@ class CloudError(ClientException):
         else:
             self._build_error_data(response)
 
-        if not self.error or not self.message:
-            self._build_error_message(response)
- 
+            if not self.error or not self.message:
+                self._build_error_message(response)
+
         super(CloudError, self).__init__(
             self.message, self.error, *args, **kwargs)
 
