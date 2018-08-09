@@ -204,7 +204,7 @@ class TestCloudException(unittest.TestCase):
         self.assertEqual(error.status_code, 400)
         self.assertIsInstance(error.error, Response)
 
-        response._content = rb"{"
+        response._content = b"{{"
         error = CloudError(response)
         self.assertIn("None", error.message)
 
@@ -213,7 +213,7 @@ class TestCloudException(unittest.TestCase):
         self.assertTrue("server error" in error.message)
         self.assertEqual(error.status_code, 400)
 
-        response._content = rb"{"
+        response._content = b"{{"
         response.reason = "FAILED!"
         error = CloudError(response)
         self.assertTrue("FAILED!" in error.message)
