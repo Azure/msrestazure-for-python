@@ -20,6 +20,13 @@ To install:
 Release History
 ---------------
 
+2018-XX-XX Version 0.5.1
+++++++++++++++++++++++++
+
+**Bugfixes**
+
+- Fix CloudError if response and error message are provided at the same time #114
+
 2018-08-02 Version 0.5.0
 ++++++++++++++++++++++++
 
