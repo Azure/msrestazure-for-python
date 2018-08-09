@@ -1,6 +1,6 @@
 #--------------------------------------------------------------------------
 #
-# Copyright (c) Microsoft Corporation. All rights reserved. 
+# Copyright (c) Microsoft Corporation. All rights reserved.
 #
 # The MIT License (MIT)
 #
@@ -37,7 +37,7 @@ import pytest
 
 from requests import Request, Response
 
-from msrest import Deserializer
+from msrest import Deserializer, Configuration
 from msrest.service_client import ServiceClient
 from msrest.exceptions import DeserializationError
 from msrest.polling import async_poller
@@ -82,7 +82,7 @@ RESOURCE_URL = 'http://subscriptions/sub1/resourcegroups/g1/resourcetype1/resour
 ERROR = 'http://dummyurl_ReturnError'
 POLLING_STATUS = 200
 
-CLIENT = ServiceClient(None, None)
+CLIENT = ServiceClient(None, Configuration("http://example.org"))
 async def mock_send(client_self, request, header_parameters, stream):
     return TestArmPolling.mock_update(request.url, header_parameters)
 CLIENT.async_send = types.MethodType(mock_send, CLIENT)
@@ -116,7 +116,7 @@ class TestArmPolling(object):
         response.request.method = 'GET'
         response.headers = headers or {}
         response.headers.update({"content-type": "application/json; charset=utf8"})
-        
+
         if url == ASYNC_URL:
             response.request.url = url
             response.status_code = POLLING_STATUS
@@ -145,13 +145,13 @@ class TestArmPolling(object):
     @staticmethod
     def mock_outputs(response):
         body = response.json()
-        body = {TestArmPolling.convert.sub(r'\1_\2', k).lower(): v 
+        body = {TestArmPolling.convert.sub(r'\1_\2', k).lower(): v
                 for k, v in body.items()}
         properties = body.setdefault('properties', {})
         if 'name' in body:
             properties['name'] = body['name']
         if properties:
-            properties = {TestArmPolling.convert.sub(r'\1_\2', k).lower(): v 
+            properties = {TestArmPolling.convert.sub(r'\1_\2', k).lower(): v
                           for k, v in properties.items()}
             del body['properties']
             body.update(properties)
@@ -427,4 +427,4 @@ async def test_long_running_negative():
 
     LOCATION_BODY = json.dumps({ 'name': TEST_NAME })
     POLLING_STATUS = 200
-    
+

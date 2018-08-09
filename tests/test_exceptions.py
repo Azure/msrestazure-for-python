@@ -1,6 +1,6 @@
 ﻿#--------------------------------------------------------------------------
 #
-# Copyright (c) Microsoft Corporation. All rights reserved. 
+# Copyright (c) Microsoft Corporation. All rights reserved.
 #
 # The MIT License (MIT)
 #
@@ -114,9 +114,9 @@ class TestCloudException(unittest.TestCase):
                     "message": "$search query option not supported",
                 }
             ],
-            "innererror": { 
-                "customKey": "customValue" 
-            }, 
+            "innererror": {
+                "customKey": "customValue"
+            },
             "additionalInfo": [
                 {
                     "type": "SomeErrorType",
@@ -129,7 +129,7 @@ class TestCloudException(unittest.TestCase):
         cloud_exp = self._d(CloudErrorData(), message)
         self.assertEqual(cloud_exp.target, 'query')
         self.assertEqual(cloud_exp.details[0].target, '$search')
-        self.assertEqual(cloud_exp.innererror['customKey'], 'customValue') 
+        self.assertEqual(cloud_exp.innererror['customKey'], 'customValue')
         self.assertEqual(cloud_exp.additionalInfo[0].type, 'SomeErrorType')
         self.assertEqual(cloud_exp.additionalInfo[0].info['customKey'], 'customValue')
         self.assertIn('customValue', str(cloud_exp))
@@ -182,7 +182,9 @@ class TestCloudException(unittest.TestCase):
 
     def test_cloud_error(self):
 
-        response = mock.create_autospec(Response)
+        response = Response()
+        response._content = br'{"real": true}'  # Has to be valid bytes JSON
+        response._content_consumed = True
         response.status_code = 400
         response.headers = {"content-type": "application/json; charset=utf8"}
         response.reason = 'BadRequest'
@@ -193,8 +195,8 @@ class TestCloudException(unittest.TestCase):
             'values': {'invalid_attribute':'data'}
             }}
 
-        response.text = json.dumps(message)
-        response.json = lambda: json.loads(response.text)
+        response._content = json.dumps(message).encode("utf-8")
+
         error = CloudError(response)
         self.assertEqual(error.message, 'Bad Request')
         self.assertEqual(error.status_code, 400)
@@ -205,11 +207,11 @@ class TestCloudException(unittest.TestCase):
         self.assertEqual(error.status_code, 400)
         self.assertIsInstance(error.error, Response)
 
-        response.text = "{"
+        response._content = rb"{"
         error = CloudError(response)
         self.assertTrue("none" in error.message)
 
-        response.text = json.dumps({'message':'server error'})
+        response._content = json.dumps({'message':'server error'}).encode("utf-8")
         error = CloudError(response)
         self.assertTrue("server error" in error.message)
         self.assertEqual(error.status_code, 400)

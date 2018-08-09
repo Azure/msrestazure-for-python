@@ -38,7 +38,7 @@ import pytest
 
 from requests import Request, Response
 
-from msrest import Deserializer
+from msrest import Deserializer, Configuration
 from msrest.service_client import ServiceClient
 from msrest.exceptions import DeserializationError
 from msrest.polling import LROPoller
@@ -80,7 +80,7 @@ RESOURCE_URL = 'http://subscriptions/sub1/resourcegroups/g1/resourcetype1/resour
 ERROR = 'http://dummyurl_ReturnError'
 POLLING_STATUS = 200
 
-CLIENT = ServiceClient(None, None)
+CLIENT = ServiceClient(None, Configuration("http://example.org"))
 def mock_send(client_self, request, header_parameters, stream):
     return TestArmPolling.mock_update(request.url, header_parameters)
 CLIENT.send = types.MethodType(mock_send, CLIENT)
@@ -359,7 +359,7 @@ class TestArmPolling(object):
 
         # Test 1, LRO options with Location final state
         poll = LROPoller(
-            TestServiceClient(None, None),
+            TestServiceClient(None, Configuration("http://example.org")),
             response,
             deserialization_cb,
             ARMPolling(0, lro_options={"final-state-via": "location"}))
@@ -368,7 +368,7 @@ class TestArmPolling(object):
 
         # Test 2, LRO options with Azure-AsyncOperation final state
         poll = LROPoller(
-            TestServiceClient(None, None),
+            TestServiceClient(None, Configuration("http://example.org")),
             response,
             deserialization_cb,
             ARMPolling(0, lro_options={"final-state-via": "azure-async-operation"}))
@@ -377,7 +377,7 @@ class TestArmPolling(object):
 
         # Test 3, backward compat (no options, means "azure-async-operation")
         poll = LROPoller(
-            TestServiceClient(None, None),
+            TestServiceClient(None, Configuration("http://example.org")),
             response,
             deserialization_cb,
             ARMPolling(0))

@@ -91,14 +91,14 @@ class CloudErrorData(object):
                 error_str += "\n\tMessage: {}".format(error_obj.message)
                 if error_obj.target:
                     error_str += "\n\tTarget: {}".format(error_obj.target)
-                if error_obj.innererror: 
-                    error_str += "\nInner error: {}".format(json.dumps(error_obj.innererror, indent=4)) 
+                if error_obj.innererror:
+                    error_str += "\nInner error: {}".format(json.dumps(error_obj.innererror, indent=4))
                 if error_obj.additionalInfo:
                     error_str += "\n\tAdditional Information:"
                     for error_info in error_obj.additionalInfo:
                         error_str += "\n\t\t{}".format(str(error_info).replace("\n", "\n\t\t"))
-        if self.innererror: 
-            error_str += "\nInner error: {}".format(json.dumps(self.innererror, indent=4)) 
+        if self.innererror:
+            error_str += "\nInner error: {}".format(json.dumps(self.innererror, indent=4))
         if self.additionalInfo:
             error_str += "\nAdditional Information:"
             for error_info in self.additionalInfo:
@@ -170,7 +170,7 @@ class CloudError(ClientException):
 
         if not self.error or not self.message:
             self._build_error_message(response)
- 
+
         super(CloudError, self).__init__(
             self.message, self.error, *args, **kwargs)
 
@@ -203,15 +203,17 @@ class CloudError(ClientException):
         return "Resource state {}".format(state) if state else "none"
 
     def _build_error_message(self, response):
+        # Assume ClientResponse has "body", and otherwise it's a requests.Response
+        content = response.text() if hasattr(response, "body") else response.text
         try:
-            data = response.json()
+            data = json.loads(content)
         except ValueError:
             message = "none"
         else:
             try:
                 message = data.get("message", self._get_state(data))
             except AttributeError: # data is not a dict, but is a requests.Response parsable as JSON
-                message = str(response.text)
+                message = str(content)
         try:
             response.raise_for_status()
         except RequestException as err:

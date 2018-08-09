@@ -23,14 +23,14 @@
 # IN THE SOFTWARE.
 #
 # --------------------------------------------------------------------------
-import re
+import json
 import time
 try:
     from urlparse import urlparse
 except ImportError:
     from urllib.parse import urlparse
 
-from msrest.exceptions import DeserializationError, ClientException
+from msrest.exceptions import DeserializationError
 from msrest.polling import PollingMethod
 
 from ..azure_exceptions import CloudError
@@ -143,14 +143,29 @@ class LongRunningOperation(object):
         """Check if response body contains meaningful content.
 
         :rtype: bool
-        :raises: DeserializationError if response body contains invalid
-         json data.
+        :raises: DeserializationError if response body contains invalid json data.
         """
-        if not response.content:
+        # Assume ClientResponse has "body", and otherwise it's a requests.Response
+        content = response.text() if hasattr(response, "body") else response.text
+        if not content:
             return True
         try:
-            body = response.json()
-            return not body
+            return not json.loads(content)
+        except ValueError:
+            raise DeserializationError(
+                "Error occurred in deserializing the response body.")
+
+    def _as_json(self, response):
+        """Assuming this is not empty, return the content as JSON.
+
+        Result/exceptions is not determined if you call this method without testing _is_empty.
+
+        :raises: DeserializationError if response body contains invalid json data.
+        """
+        # Assume ClientResponse has "body", and otherwise it's a requests.Response
+        content = response.text() if hasattr(response, "body") else response.text
+        try:
+            return json.loads(content)
         except ValueError:
             raise DeserializationError(
                 "Error occurred in deserializing the response body.")
@@ -171,7 +186,7 @@ class LongRunningOperation(object):
         """
         if self._is_empty(response):
             return None
-        body = response.json()
+        body = self._as_json(response)
         return body.get('status')
 
     def _get_provisioning_state(self, response):
@@ -182,7 +197,7 @@ class LongRunningOperation(object):
         """
         if self._is_empty(response):
             return None
-        body = response.json()
+        body = self._as_json(response)
         return body.get("properties", {}).get("provisioningState")
 
     def should_do_final_get(self):
