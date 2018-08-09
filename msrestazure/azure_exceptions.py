@@ -168,8 +168,8 @@ class CloudError(ClientException):
         else:
             self._build_error_data(response)
 
-        if not self.error or not self.message:
-            self._build_error_message(response)
+            if not self.error or not self.message:
+                self._build_error_message(response)
 
         super(CloudError, self).__init__(
             self.message, self.error, *args, **kwargs)
