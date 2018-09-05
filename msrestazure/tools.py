@@ -133,7 +133,7 @@ def parse_resource_id(rid):
     match = _ARMID_RE.match(rid)
     if match:
         result = match.groupdict()
-        children = _CHILDREN_RE.finditer(result['children'])
+        children = _CHILDREN_RE.finditer(result['children'] or '')
         count = None
         for count, child in enumerate(children):
             result.update({
@@ -149,7 +149,7 @@ def _populate_alternate_kwargs(kwargs):
     such as the resource and lock commands.
     """
 
-    resource_namespace = kwargs.get('namespace')
+    resource_namespace = kwargs['namespace']
     resource_type = kwargs.get('child_type_{}'.format(kwargs['last_child_num'])) or kwargs['type']
     resource_name = kwargs.get('child_name_{}'.format(kwargs['last_child_num'])) or kwargs['name']
 
