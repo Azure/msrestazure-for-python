@@ -27,6 +27,10 @@ Release History
 
 - Fix CloudError if response and error message are provided at the same time #114
 
+**Features**
+
+- Altered resource id parsing logic to allow for resource group IDs #117
+
 2018-08-02 Version 0.5.0
 ++++++++++++++++++++++++
 
