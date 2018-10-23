@@ -91,10 +91,16 @@ class AzureLocalCredentialProber(object):
         try:
             creds = MSIAuthentication()
             _LOGGER.warning('Managed system identity was detected')
-        except requests.exceptions.ConnectionError:
-            client_id = os.environ.get('AZURE_CLIENT_ID')
-            if client_id:
-                creds = ServicePrincipalCredentials(client_id=client_id,
+        except (requests.exceptions.ConnectionError, requests.exceptions.HTTPError):
+            if os.environ.get('AZURE_CONN_STR'):  # this should be java auth code file content
+                auth_info = json.loads(os.environ.get('AZURE_CONN_STR'))
+                subscription_id = auth_info.get('subscriptionId') 
+                creds = ServicePrincipalCredentials(client_id=auth_info['clientId'],
+                                                    secret=auth_info['clientSecret'],
+                                                    tennt_id=auth_info['tenantId'])
+            elif os.environ.get('AZURE_CLIENT_ID'):
+                # TODO error out if other env vars are not set
+                creds = ServicePrincipalCredentials(client_id=os.environ.get('AZURE_CLIENT_ID'),
                                                     secret=os.environ.get('AZURE_CLIENT_SECRET'),
                                                     tennt_id=os.environ.get('AZURE_TENANT_ID'))
                 _LOGGER.warning('Service principal credentials was detected')
