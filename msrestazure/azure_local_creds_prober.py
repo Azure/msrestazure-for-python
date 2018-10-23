@@ -36,49 +36,21 @@ from msrestazure.azure_active_directory import MSIAuthentication, ServicePrincip
 
 _LOGGER = logging.getLogger(__name__)
 
-class CLICredentials(BasicTokenAuthentication):
-
-    def __init__(self, resource=None, subscription_id=None):   # allow subscriptions
-        super(CLICredentials, self).__init__(None)
-        uname = platform.uname()
-        # python 2, `platform.uname()` returns: tuple(system, node, release, version, machine, processor)
-        platform_name = getattr(uname, 'system', None) or uname[0]
-        platform_name = platform_name.lower()
-        if platform_name == 'windows':
-            program_files_folder = os.environ.get('ProgramFiles(x86)') or os.environ.get('ProgramFiles')
-            probing_paths = [os.path.join(program_files_folder, 'Microsoft SDKs', 'Azure', 'CLI2', 'wbin', 'az.cmd')]
-        else:
-            probing_paths = ['/usr/bin/az', '/usr/local/bin/az']
-        
-        cli_path = next((p for p in probing_paths if os.path.isfile(p)), None)
-        if cli_path is None:
-            raise NotImplementedError('Azure CLI is not installed')
-        self.cli_path = cli_path
-        self.resource = resource
-        self.subscription_id = subscription_id
-        self.token = None
-
-    def set_token(self):
-        args = [self.cli_path, 'account', 'get-access-token']
-        if self.subscription_id:
-            args.extend(['--subscription', self.subscription_id])
-        p = Popen(args, stdout=PIPE, stderr=PIPE)
-        stdout, stderr = p.communicate()
-        p.wait()
-        if stderr:
-            raise ValueError('Retrieving acccess token failed: ' + stderr)
-        info = json.loads(stdout)
-        self.scheme, self.token = info['tokenType'], {'access_token': info['accessToken']}
-
-    def signed_session(self, session=None):
-        # Token cache is handled by the VM extension, call each time to avoid expiration
-        self.set_token()
-        return super(CLICredentials, self).signed_session(session)
-
-
 class AzureLocalCredentialProber(object):
+    '''
+    Probing logics:
+    1. Managed service identity
+    2. AZURE_CONN_STR, with SDK auth code file content in json. 
+        https://github.com/Azure/azure-sdk-for-java/wiki/Authentication
+    3. Individual environment variables to estabslish a service principal's creds
+        https://github.com/Azure/azure-sdk-for-go
+    4. Azure CLI, through "az account get-access-token"
+    '''
 
     def __init__(self, subscription_id=None):
+        '''
+        subscription_id: if missing, prober will find one based on detected creds.
+        '''
         self.subscription_id = subscription_id
         self.creds = None
         self._probe()
@@ -126,3 +98,43 @@ class AzureLocalCredentialProber(object):
                 _LOGGER.warning('Failed to load azure.mgmt.resource.subscriptions to find the default subscription.'
                                 ' If this is expected, supply subscription_id on creating the probe object')
         self.subscription_id = subscription_id
+
+
+class CLICredentials(BasicTokenAuthentication):
+
+    def __init__(self, resource=None, subscription_id=None):   # allow subscriptions
+        super(CLICredentials, self).__init__(None)
+        uname = platform.uname()
+        # python 2, `platform.uname()` returns: tuple(system, node, release, version, machine, processor)
+        platform_name = getattr(uname, 'system', None) or uname[0]
+        platform_name = platform_name.lower()
+        if platform_name == 'windows':
+            program_files_folder = os.environ.get('ProgramFiles(x86)') or os.environ.get('ProgramFiles')
+            probing_paths = [os.path.join(program_files_folder, 'Microsoft SDKs', 'Azure', 'CLI2', 'wbin', 'az.cmd')]
+        else:
+            probing_paths = ['/usr/bin/az', '/usr/local/bin/az']
+        
+        cli_path = next((p for p in probing_paths if os.path.isfile(p)), None)
+        if cli_path is None:
+            raise NotImplementedError('Azure CLI is not installed')
+        self.cli_path = cli_path
+        self.resource = resource
+        self.subscription_id = subscription_id
+        self.token = None
+
+    def set_token(self):
+        args = [self.cli_path, 'account', 'get-access-token']
+        if self.subscription_id:
+            args.extend(['--subscription', self.subscription_id])
+        p = Popen(args, stdout=PIPE, stderr=PIPE)
+        stdout, stderr = p.communicate()
+        p.wait()
+        if stderr:
+            raise ValueError('Retrieving acccess token failed: ' + stderr)
+        info = json.loads(stdout)
+        self.scheme, self.token = info['tokenType'], {'access_token': info['accessToken']}
+
+    def signed_session(self, session=None):
+        # Token cache is handled by the VM extension, call each time to avoid expiration
+        self.set_token()
+        return super(CLICredentials, self).signed_session(session)
