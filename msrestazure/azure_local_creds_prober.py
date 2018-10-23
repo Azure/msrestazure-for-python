@@ -84,6 +84,7 @@ class AzureLocalCredentialProber(object):
                 subscriptions = list(SubscriptionClient(creds).subscriptions.list())
                 if subscriptions:
                     subscription_ids = [s.id.split('/')[-1] for s in subscriptions]
+                    subscription_id = subscription_ids[0]
                     _LOGGER.warning('Found subscription "%s" to use', subscription_ids[0])
                     if len(subscription_ids) > 1:
                         _LOGGER.warning('You also have accesses to a few other subscriptions "%S".'
