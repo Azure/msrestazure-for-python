@@ -40,6 +40,8 @@ class AzureLocalCredentialProber(object):
     '''
     Probing logics:
     1. Managed service identity
+        a. app service
+        b. virtual machine
     2. AZURE_CONN_STR, with SDK auth code file content in json. 
         https://github.com/Azure/azure-sdk-for-java/wiki/Authentication
     3. Individual environment variables to estabslish a service principal's creds
