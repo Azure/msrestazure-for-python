@@ -107,32 +107,56 @@ class AzureCLIProber(CredsProber):
         if platform_name == 'windows':
             program_files_folder = (os.environ.get('ProgramFiles(x86)') or
                                     os.environ.get('ProgramFiles'))
-            probing_paths = [os.path.join(program_files_folder, 'Microsoft SDKs',
-                                          'Azure', 'CLI2', 'wbin', 'az.cmd')]
+            probing_path = os.path.join(program_files_folder, 'Microsoft SDKs',
+                                        'Azure', 'CLI2', 'wbin', 'az.cmd')
+            if os.path.isfile(probing_path):
+                cli_path = probing_path
         else:
-            probing_paths = ['/usr/bin/az', '/usr/local/bin/az']
+            import shutil
+            try:
+                cli_path = shutil.which('az')
+            except AttributeError:
+                process = Popen(['which', 'az'], stdout=PIPE, stderr=PIPE)
+                stdout, stderr = process.communicate()
+                process.wait()
+                if not stderr:
+                    installed_clis = [s.trim() for s in stdout.split('\n') if s]
+                    cli_path = installed_clis[0]
+                    if len(installed_clis) > 1:
+                        _LOGGER.warning('More than one Azure CLI are installed at "%s"'
+                                        ' Pick the 1st one.', ', '.join(installed_clis))
 
-        cli_path = next((p for p in probing_paths if os.path.isfile(p)), None)
         if cli_path:
             creds = CLICredentials(cli_path)
             if subscription_id is None:
-                subscription_id = creds.invoke_cli_token_command()['subscription']
+                creds.set_token()
+                subscription_id = creds.subscription_id
             return creds, subscription_id
         return None, None
 
 
 class CLICredentials(BasicTokenAuthentication):
 
-    def __init__(self, cli_path, subscription_id=None):   # allow subscriptions
+    def __init__(self, cli_path, subscription_id=None):
         super(CLICredentials, self).__init__(None)
         self.cli_path = cli_path
         self.subscription_id = subscription_id
+        self.expires_on = None
 
     def set_token(self):
-        info = self.invoke_cli_token_command()
-        self.scheme, self.token = info['tokenType'], {'access_token': info['accessToken']}
+        from dateutil import parser
+        from datetime import timedelta, datetime
+        if (not self.token or self.expires_on and
+                (datetime.now() + timedelta(minutes=5)) > self.expires_on):
+            info = self._invoke_cli_token_command()
+            self.scheme, self.token, self.expires_on = (info['tokenType'],
+                                                        {'access_token': info['accessToken']},
+                                                        parser.parse(info['expiresOn']))
+            if self.subscription_id is None:
+                self.subscription_id = info['subscription']
+        return self.scheme, self.token
 
-    def invoke_cli_token_command(self):
+    def _invoke_cli_token_command(self):
         args = [self.cli_path, 'account', 'get-access-token']
         if self.subscription_id:
             args.extend(['--subscription', self.subscription_id])
@@ -179,7 +203,7 @@ def get_client_through_local_creds_probing(client_class, **kwargs):
     4. Azure CLI, through "az account get-access-token"
     '''
     resource = kwargs.get('resource')
-    if not resource:  #TODO figure out the right way
+    if not resource:
         from .azure_cloud import AZURE_PUBLIC_CLOUD
         resource = AZURE_PUBLIC_CLOUD.endpoints.resource_manager
     probers = [ConnectionStrEnvProber(resource), ServicePrincipalEnvProber(resource),
