@@ -39,7 +39,9 @@ _LOGGER = logging.getLogger(__name__)
 #pylint: disable=too-few-public-methods,missing-docstring
 
 class CredsProber:
-
+    '''
+    Prober base class
+    '''
     def __init__(self, resource):
         self.enabled = True
         self.resource = resource
@@ -64,7 +66,9 @@ class CredsProber:
 
 
 class ManagedServiceIdentityProber(CredsProber):
-
+    '''
+    Detect managed service identity coming with VM, VM scaleset, and App Service
+    '''
     def probe(self):
         if not self.enabled:
             return None
@@ -78,12 +82,12 @@ class ManagedServiceIdentityProber(CredsProber):
 
 class ConnectionStrEnvProber(CredsProber):
     '''
-    Detect environment variable AZURE_CONN_STR
+    Detect environment variable AZURE_CONNECTION_STRING
     '''
     def probe(self):
         creds = None
-        if self.enabled and os.environ.get('AZURE_CONN_STR'):
-            auth_info = json.loads(os.environ.get('AZURE_CONN_STR'))
+        if self.enabled and os.environ.get('AZURE_CONNECTION_STRING'):
+            auth_info = json.loads(os.environ.get('AZURE_CONNECTION_STRING'))
             creds = ServicePrincipalCredentials(client_id=auth_info['clientId'],
                                                 secret=auth_info['clientSecret'],
                                                 tennt_id=auth_info['tenantId'])
@@ -91,7 +95,7 @@ class ConnectionStrEnvProber(CredsProber):
         return None
 
     def probe_subscription(self, creds):
-        return json.loads(os.environ.get('AZURE_CONN_STR'))['subscriptionId']
+        return json.loads(os.environ.get('AZURE_CONNECTION_STRING'))['subscriptionId']
 
 
 class ServicePrincipalEnvProber(CredsProber):
@@ -157,7 +161,9 @@ class AzureCLIProber(CredsProber):
 
 
 class CLICredentials(BasicTokenAuthentication):
-
+    '''
+    Credentials objects for AAD token retrieved through sub-shelling "az account get-access-token"  
+    '''
     def __init__(self, cli_path, subscription_id=None):
         super(CLICredentials, self).__init__(None)
         self.cli_path = cli_path
@@ -224,6 +230,9 @@ def get_creds_through_local_probing(**kwargs):
 
 
 def get_client_through_local_creds_probing(client_class, **kwargs):
+    '''
+    Helper method to create management client using probed local credentials
+    '''
     creds, prober = _get_creds_through_local_probing(**kwargs)
     subscription_id = kwargs.get('subscription_id')
     if not subscription_id:
