@@ -26,8 +26,22 @@
 
 
 from azure.mgmt.storage import StorageManagementClient
-from msrestazure.azure_local_creds_prober import get_client_through_local_creds_probing
+from azure.multiapi.storage.v2018_03_28.blob.blockblobservice import BlockBlobService
+from msrestazure.azure_local_creds_prober import (get_client_through_local_creds_probing,
+                                                  get_creds_through_local_probing)
 
+# look for storage account
 client = get_client_through_local_creds_probing(StorageManagementClient)
 accounts = list(client.storage_accounts.list())
 print('Found {} accounts'.format(len(accounts)))
+
+# look for containers in the 1st storage account through storage preview service
+creds = get_creds_through_local_probing(resource="https://storage.azure.com/")
+storage_data_client2 = BlockBlobService(token_credential=creds, account_name=accounts[0].name)
+print(len(list(storage_data_client2.list_containers())))
+pass
+
+
+
+
+
