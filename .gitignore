@@ -12,4 +12,3 @@ coverage.xml
 Pipfile.lock
 build
 dist
-env
