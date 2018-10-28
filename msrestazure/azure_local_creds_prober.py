@@ -24,7 +24,6 @@
 #
 #--------------------------------------------------------------------------
 
-
 import os
 import json
 import platform
@@ -33,6 +32,8 @@ from subprocess import PIPE, Popen
 import requests
 from msrest.authentication import BasicTokenAuthentication
 from msrestazure.azure_active_directory import MSIAuthentication, ServicePrincipalCredentials
+from msrestazure.azure_cloud import (AZURE_CHINA_CLOUD, AZURE_GERMAN_CLOUD,
+                                     AZURE_PUBLIC_CLOUD, AZURE_US_GOV_CLOUD)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,6 +46,17 @@ class CredsProber:
     def __init__(self, resource):
         self.enabled = True
         self.resource = resource
+
+    def find_cloud_env(self, cloud_name):
+        envs = [AZURE_PUBLIC_CLOUD, AZURE_CHINA_CLOUD, AZURE_GERMAN_CLOUD, AZURE_US_GOV_CLOUD]
+        if cloud_name:
+            env = next((e for e in envs if cloud_name.lower() == e.name.lower()), None)
+            if not env:
+                raise ValueError('"{}" is not a supported cloud environment by Python'
+                                 ' SDK'.format(env))
+        else:
+            env = AZURE_PUBLIC_CLOUD
+        return env
 
     def probe_subscription(self, creds):  # pylint: disable=no-self-use
         subscription_id = None
@@ -74,6 +86,9 @@ class ManagedServiceIdentityProber(CredsProber):
             return None
         try:
             creds = MSIAuthentication()
+             # MSI is not yet supported in sovereigns
+            setattr(creds, 'cloud_environment', AZURE_PUBLIC_CLOUD)
+            creds.resource = self.resource or AZURE_PUBLIC_CLOUD.endpoints.management
             _LOGGER.warning('Managed system identity was detected')
             return creds
         except (requests.exceptions.ConnectionError, requests.exceptions.HTTPError):
@@ -88,9 +103,16 @@ class ConnectionStrEnvProber(CredsProber):
         creds = None
         if self.enabled and os.environ.get('AZURE_CONNECTION_STRING'):
             auth_info = json.loads(os.environ.get('AZURE_CONNECTION_STRING'))
+            if auth_info.get('cloudName'):
+                cloud_environment = self.find_cloud_env(auth_info.get('cloudName'))
+            else:
+                cloud_environment = AZURE_PUBLIC_CLOUD
+            resource = self.resource or cloud_environment.endpoints.management
             creds = ServicePrincipalCredentials(client_id=auth_info['clientId'],
                                                 secret=auth_info['clientSecret'],
-                                                tennt_id=auth_info['tenantId'])
+                                                tennt_id=auth_info['tenantId'],
+                                                resource=resource,
+                                                cloud_environment=cloud_environment)
             return creds
         return None
 
@@ -111,9 +133,15 @@ class ServicePrincipalEnvProber(CredsProber):
             if not client_secret or not tenant_id:
                 raise ValueError('Environment variables of AZURE_CLIENT_SECRET and'
                                  ' AZURE_TENANT_ID must be set')
-            creds = ServicePrincipalCredentials(client_id=client_id, secret=client_secret,
-                                                tenant=tenant_id, resource=self.resource)
+            if os.environ.get('AZURE_CLOUD_NAME'):
+                cloud_environment = self.find_cloud_env(os.environ.get('AZURE_CLOUD_NAME'))
+            else:
+                cloud_environment = AZURE_PUBLIC_CLOUD
 
+            resource = self.resource or cloud_environment.endpoints.management
+            creds = ServicePrincipalCredentials(client_id=client_id, secret=client_secret,
+                                                tenant=tenant_id, resource=resource,
+                                                cloud_environment=cloud_environment)
             _LOGGER.warning('Service principal credentials was detected')
             return creds
         return None
@@ -153,7 +181,18 @@ class AzureCLIProber(CredsProber):
                         _LOGGER.warning('More than one Azure CLI are installed at "%s"'
                                         ' Pick the 1st one.', ', '.join(installed_clis))
 
-        return CLICredentials(cli_path) if cli_path else None
+        if not cli_path:
+            return None
+
+        process = Popen([cli_path, 'account', 'show'], stdout=PIPE, stderr=PIPE)
+        stdout, stderr = process.communicate()
+        if stderr:
+            raise ValueError("Retrieving CLI account information fails. Err: " + stderr)
+        creds = CLICredentials(cli_path)
+        output = json.loads(stdout.decode())
+        creds.cloud_environment = self.find_cloud_env(output['environmentName'])
+        creds.resource = self.resource or creds.cloud_environment.endpoints.management
+        return creds
 
     def probe_subscription(self, creds):
         creds.set_token()
@@ -162,7 +201,7 @@ class AzureCLIProber(CredsProber):
 
 class CLICredentials(BasicTokenAuthentication):
     '''
-    Credentials objects for AAD token retrieved through sub-shelling "az account get-access-token"  
+    Credentials objects for AAD token retrieved through sub-shelling "az account get-access-token"
     '''
     def __init__(self, cli_path, subscription_id=None):
         super(CLICredentials, self).__init__(None)
@@ -170,6 +209,7 @@ class CLICredentials(BasicTokenAuthentication):
         self.subscription_id = subscription_id
         self.expires_on = None
         self.resource = None
+        self.cloud_environment = None
 
     def set_token(self):
         from dateutil import parser
@@ -204,15 +244,11 @@ class CLICredentials(BasicTokenAuthentication):
 
 def _get_creds_through_local_probing(**kwargs):
     resource = kwargs.get('resource')
-    if not resource:
-        from .azure_cloud import AZURE_PUBLIC_CLOUD
-        resource = AZURE_PUBLIC_CLOUD.endpoints.resource_manager
     probers = [ConnectionStrEnvProber(resource), ServicePrincipalEnvProber(resource),
                ManagedServiceIdentityProber(resource), AzureCLIProber(resource)]
     for prober in probers:
         creds = prober.probe()
         if creds:
-            creds.resource = resource
             return creds, prober
     raise ValueError('No credential was detected from the local machine')
 
