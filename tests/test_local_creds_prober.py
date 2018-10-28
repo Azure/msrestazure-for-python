@@ -25,22 +25,20 @@
 #--------------------------------------------------------------------------
 
 
-class TestCredsLocalProbing(unittest.TestCase):
+from azure.mgmt.storage import StorageManagementClient
+from azure.multiapi.storage.v2018_03_28.blob.blockblobservice import BlockBlobService
+from msrestazure.azure_local_creds_prober import (get_client_through_local_creds_probing,
+                                                  get_creds_through_local_probing)
 
-    @unittest.skip("demo sample client code")
-    def test_create_client_from_probed_creds(self):
+# test management plane
+client = get_client_through_local_creds_probing(StorageManagementClient)
+accounts = list(client.storage_accounts.list())
+print('Found {} accounts'.format(len(accounts)))
 
-        from azure.mgmt.storage import StorageManagementClient
-        from azure.multiapi.storage.v2018_03_28.blob.blockblobservice import BlockBlobService
-        from msrestazure.azure_local_creds_prober import (get_client_through_local_creds_probing,
-                                                          get_creds_through_local_probing)
+# test storage data plane
+creds = get_creds_through_local_probing(resource="https://storage.azure.com/")
+test_storage_account, container, blob, file_to_upload = 'teststor12345678', 'temp', 'hey.exe', r'c:\temp\hey.exe'
+storage_data_client = BlockBlobService(token_credential=creds, account_name=test_storage_account)
+storage_data_client.create_blob_from_path(container, blob, file_to_upload)
+print('uploaded')
 
-        # look for storage account
-        client = get_client_through_local_creds_probing(StorageManagementClient)
-        accounts = list(client.storage_accounts.list())
-        print('Found {} accounts'.format(len(accounts)))
-
-        # look for containers in the 1st storage account through storage preview service
-        creds = get_creds_through_local_probing(resource="https://storage.azure.com/")
-        storage_data_client2 = BlockBlobService(token_credential=creds, account_name=accounts[0].name)
-        print(len(list(storage_data_client2.list_containers())))

@@ -169,6 +169,7 @@ class CLICredentials(BasicTokenAuthentication):
         self.cli_path = cli_path
         self.subscription_id = subscription_id
         self.expires_on = None
+        self.resource = None
 
     def set_token(self):
         from dateutil import parser
@@ -187,12 +188,14 @@ class CLICredentials(BasicTokenAuthentication):
         args = [self.cli_path, 'account', 'get-access-token']
         if self.subscription_id:
             args.extend(['--subscription', self.subscription_id])
+        if self.resource:
+            args.extend(['--resource', self.resource])
         process = Popen(args, stdout=PIPE, stderr=PIPE)
         stdout, stderr = process.communicate()
         process.wait()
         if stderr:
             raise ValueError('Retrieving acccess token failed: ' + stderr)
-        return json.loads(stdout)
+        return json.loads(stdout.decode())
 
     def signed_session(self, session=None):
         self.set_token()
@@ -209,6 +212,7 @@ def _get_creds_through_local_probing(**kwargs):
     for prober in probers:
         creds = prober.probe()
         if creds:
+            creds.resource = resource
             return creds, prober
     raise ValueError('No credential was detected from the local machine')
 
