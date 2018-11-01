@@ -262,7 +262,17 @@ class LongRunningOperation(object):
         status = self._get_provisioning_state(response)
         self.status = status or 'Succeeded'
 
-        self.resource = self._deserialize(response)
+        self.parse_resource(response)
+
+    def parse_resource(self, response):
+        """Assuming this response is a resource, use the deserialization callback to parse it.
+        If body is empty, assuming no resource to return.
+        """
+        self._raise_if_bad_http_status_and_method(response)
+        if not self._is_empty(response):
+            self.resource = self._deserialize(response)
+        else:
+            self.resource = None
 
     def get_status_from_async(self, response):
         """Process the latest status update retrieved from a
@@ -398,7 +408,7 @@ class ARMPolling(PollingMethod):
             else:
                 final_get_url = self._operation.initial_response.request.url
             self._response = self.request_status(final_get_url)
-            self._operation.get_status_from_resource(self._response)
+            self._operation.parse_resource(self._response)
 
     def _delay(self):
         """Check for a 'retry-after' header to set timeout,
