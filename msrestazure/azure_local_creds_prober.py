@@ -85,6 +85,13 @@ class ManagedServiceIdentityProber(CredsProber):
         if not self.enabled:
             return None
         try:
+            # quick check  a VM with identity to avoid the long timeout in MSIAuthentication 
+            _ = requests.get('http://169.254.169.254/metadata/identity/oauth2/token',
+                                  params={'api-version': '2018-02-01',
+                                          'resource':'https://management.core.windows.net/'},
+                                  headers={'Metadata': 'true'},
+                                  timeout=1)
+
             creds = MSIAuthentication()
              # MSI is not yet supported in sovereigns
             setattr(creds, 'cloud_environment', AZURE_PUBLIC_CLOUD)
