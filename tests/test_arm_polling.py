@@ -336,6 +336,9 @@ class TestArmPolling(object):
         )
 
         class TestServiceClient(ServiceClient):
+            def __init__(self):
+                ServiceClient.__init__(self, None, Configuration("http://example.org"))
+
             def send(self, request, headers=None, content=None, **config):
                 assert request.method == 'GET'
 
@@ -383,6 +386,39 @@ class TestArmPolling(object):
             ARMPolling(0))
         result = poll.result()
         assert result['status'] == 'Succeeded'
+
+        # Test 4, location has no body
+
+        class TestServiceClientNoBody(ServiceClient):
+            def __init__(self):
+                ServiceClient.__init__(self, None, Configuration("http://example.org"))
+
+            def send(self, request, headers=None, content=None, **config):
+                assert request.method == 'GET'
+
+                if request.url == 'http://example.org/location':
+                    return TestArmPolling.mock_send(
+                        'GET',
+                        200,
+                        body=""
+                    )
+                elif request.url == 'http://example.org/async_monitor':
+                    return TestArmPolling.mock_send(
+                        'GET',
+                        200,
+                        body={'status': 'Succeeded'}
+                    )
+                else:
+                    pytest.fail("No other query allowed")
+
+        poll = LROPoller(
+            TestServiceClientNoBody(),
+            response,
+            deserialization_cb,
+            ARMPolling(0, lro_options={"final-state-via": "location"}))
+        result = poll.result()
+        assert result is None
+
 
         # Former oooooold tests to refactor one day to something more readble
 

@@ -345,6 +345,13 @@ class TestTools(unittest.TestCase):
                     'namespace': 'Microsoft.Authorization',
                     'subscription': 'fakesub',
                 }
+            },
+            {
+                'resource_id': '/subscriptions/mySub/resourceGroups/myRg',
+                'expected': {
+                    'subscription': 'mySub',
+                    'resource_group': 'myRg'
+                }
             }
         ]
         for test in tests:
@@ -454,6 +461,13 @@ class TestTools(unittest.TestCase):
                     'child_type_1': None,
                     'child_name_1': 'name2',
                     'child_namespace_2': 'Microsoft.Provider3'
+                }
+            },
+            {
+                'resource_id': '/subscriptions/mySub/resourceGroups/myRg',
+                'id_args': {
+                    'subscription': 'mySub',
+                    'resource_group': 'myRg'
                 }
             }
         ]

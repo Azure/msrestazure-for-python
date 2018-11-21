@@ -20,12 +20,17 @@ To install:
 Release History
 ---------------
 
-2018-XX-XX Version 0.5.1
+2018-11-01 Version 0.5.1
 ++++++++++++++++++++++++
 
 **Bugfixes**
 
 - Fix CloudError if response and error message are provided at the same time #114
+- Fix LRO polling if last call is an empty Location (Autorest.Python 3.x only) #120
+
+**Features**
+
+- Altered resource id parsing logic to allow for resource group IDs #117
 
 2018-08-02 Version 0.5.0
 ++++++++++++++++++++++++
