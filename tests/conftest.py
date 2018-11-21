@@ -1,6 +1,6 @@
 #--------------------------------------------------------------------------
 #
-# Copyright (c) Microsoft Corporation. All rights reserved. 
+# Copyright (c) Microsoft Corporation. All rights reserved.
 #
 # The MIT License (MIT)
 #
@@ -25,10 +25,17 @@
 #--------------------------------------------------------------------------
 import json
 import os.path
+import sys
 
 import pytest
 
 CWD = os.path.dirname(__file__)
+
+# Ignore collection of async tests for Python 2
+collect_ignore = []
+if sys.version_info < (3, 5):
+    collect_ignore.append("asynctests")
+
 
 def pytest_addoption(parser):
     parser.addoption("--runslow", action="store_true",
