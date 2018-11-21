@@ -362,7 +362,7 @@ class TestArmPolling(object):
 
         # Test 1, LRO options with Location final state
         poll = LROPoller(
-            TestServiceClient(None, Configuration("http://example.org")),
+            TestServiceClient(),
             response,
             deserialization_cb,
             ARMPolling(0, lro_options={"final-state-via": "location"}))
@@ -371,7 +371,7 @@ class TestArmPolling(object):
 
         # Test 2, LRO options with Azure-AsyncOperation final state
         poll = LROPoller(
-            TestServiceClient(None, Configuration("http://example.org")),
+            TestServiceClient(),
             response,
             deserialization_cb,
             ARMPolling(0, lro_options={"final-state-via": "azure-async-operation"}))
@@ -380,7 +380,7 @@ class TestArmPolling(object):
 
         # Test 3, backward compat (no options, means "azure-async-operation")
         poll = LROPoller(
-            TestServiceClient(None, Configuration("http://example.org")),
+            TestServiceClient(),
             response,
             deserialization_cb,
             ARMPolling(0))
