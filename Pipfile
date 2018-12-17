@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-"e1839a8" = {path = ".", extras = ["async"], editable = true}
+"e1839a8" = {path = ".", editable = true}
 
 [dev-packages]
 mock = {markers="python_version<='2.7'"}

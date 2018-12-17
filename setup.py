@@ -53,9 +53,4 @@ setup(
         "msrest>=0.6.0,<2.0.0",
         "adal>=0.6.0,<2.0.0",
     ],
-    extras_require={
-        "async:python_version>='3.5'": [
-            "msrest[async]>=0.6.0,<2.0.0",
-        ],
-    }
 )

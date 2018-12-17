@@ -1,4 +1,4 @@
--e .[async]
+-e .
 mock;python_version<="2.7"
 httpretty
 pytest
