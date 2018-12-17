@@ -335,9 +335,6 @@ class AzureOperationPoller(object):
     """Initiates long running operation and polls status in separate
     thread.
 
-    This class is used in old SDK and has been replaced. See "polling"
-    submodule now.
-
     :param callable send_cmd: The API request to initiate the operation.
     :param callable update_cmd: The API reuqest to check the status of
         the operation.
@@ -502,7 +499,7 @@ class AzureOperationPoller(object):
 
         :param int timeout: Perion of time to wait for the long running
          operation to complete.
-        :raises ~msrestazure.azure_exceptions.CloudError: Server problem with the query.
+        :raises CloudError: Server problem with the query.
         """
         if self._thread is None:
             return
