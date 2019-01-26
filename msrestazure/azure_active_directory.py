@@ -491,13 +491,16 @@ def get_msi_token(resource, port=50342, msi_conf=None):
     token_entry = result.json()
     return token_entry['token_type'], token_entry['access_token'], token_entry
 
-def get_msi_token_webapp(resource):
+def get_msi_token_webapp(resource, msi_conf=None):
     """Get a MSI token from inside a webapp or functions.
 
     Env variable will look like:
 
     - MSI_ENDPOINT = http://127.0.0.1:41741/MSI/token/
     - MSI_SECRET = 69418689F1E342DD946CB82994CDA3CB
+
+    :param str resource: The resource where the token would be use.
+    :param dict[str,str] msi_conf: msi_conf if to request a token through a User Assigned Identity (if not specified, assume System Assigned)
     """
     try:
         msi_endpoint = os.environ['MSI_ENDPOINT']
@@ -506,7 +509,18 @@ def get_msi_token_webapp(resource):
         err_msg = "{} required env variable was not found. You might need to restart your app/function.".format(err)
         _LOGGER.critical(err_msg)
         raise RuntimeError(err_msg)
-    request_uri = '{}/?resource={}&api-version=2017-09-01'.format(msi_endpoint, resource)
+
+    clientid_param = ''
+    if msi_conf:
+        if len(msi_conf) > 1:
+            raise ValueError("{} are mutually exclusive".format(list(msi_conf.keys())))
+        elif 'client_id' not in msi_conf.keys():
+            raise ValueError('"client_id" is the only supported explicit identity option on WebApp')
+        else:
+            clientid_param = '&clientid={}'.format(msi_conf['client_id'])
+
+    request_uri = '{}/?resource={}&api-version=2017-09-01{}'.format(msi_endpoint, resource, clientid_param)
+    
     headers = {
         'secret': msi_secret
     }
@@ -566,10 +580,7 @@ class MSIAuthentication(BasicTokenAuthentication):
         self.cloud_environment = kwargs.get('cloud_environment', AZURE_PUBLIC_CLOUD)
         self.resource = kwargs.get('resource', self.cloud_environment.endpoints.active_directory_resource_id)
 
-        if _is_app_service():
-            if self.msi_conf:
-                raise AuthenticationError("User Assigned Entity is not available on WebApp yet.")
-        elif "MSI_ENDPOINT" not in os.environ:
+        if not _is_app_service() and "MSI_ENDPOINT" not in os.environ:
             # Use IMDS if no MSI_ENDPOINT
             self._vm_msi = _ImdsTokenProvider(self.msi_conf)
         # Follow the same convention as all Credentials class to check for the token at creation time #106
@@ -577,7 +588,7 @@ class MSIAuthentication(BasicTokenAuthentication):
 
     def set_token(self):
         if _is_app_service():
-            self.scheme, _, self.token = get_msi_token_webapp(self.resource)
+            self.scheme, _, self.token = get_msi_token_webapp(self.resource, self.msi_conf)
         elif "MSI_ENDPOINT" in os.environ:
             self.scheme, _, self.token = get_msi_token(self.resource, self.port, self.msi_conf)
         else:

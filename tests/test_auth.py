@@ -497,7 +497,8 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         httpretty.register_uri(httpretty.GET,
                                'http://127.0.0.1:41741/MSI/token/?resource=foo&api-version=2017-09-01',
                                body=json.dumps(json_payload),
-                               content_type="application/json")
+                               content_type="application/json",
+                               match_querystring=True)
 
         app_service_env = {
             'APPSETTING_WEBSITE_SITE_NAME': 'Website name',
@@ -506,6 +507,28 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         }
         with mock.patch.dict('os.environ', app_service_env):
             credentials = MSIAuthentication(resource="foo")
+            assert credentials.scheme == "TokenTypeWebApp"
+            assert credentials.token == json_payload
+        
+        # WebApp with User Assigned Identity
+
+        json_payload = {
+            'token_type': "TokenTypeWebApp",
+            "access_token": "AccessToken"
+        }
+        httpretty.register_uri(httpretty.GET,
+                               'http://127.0.0.1:41741/MSI/token/?resource=foo&api-version=2017-09-01&clientid=bar',
+                               body=json.dumps(json_payload),
+                               content_type="application/json",
+                               match_querystring=True)
+
+        app_service_env = {
+            'APPSETTING_WEBSITE_SITE_NAME': 'Website name',
+            'MSI_ENDPOINT': 'http://127.0.0.1:41741/MSI/token',
+            'MSI_SECRET': '69418689F1E342DD946CB82994CDA3CB'
+        }
+        with mock.patch.dict('os.environ', app_service_env):
+            credentials = MSIAuthentication(resource="foo", client_id="bar")
             assert credentials.scheme == "TokenTypeWebApp"
             assert credentials.token == json_payload
 
