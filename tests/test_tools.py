@@ -34,7 +34,7 @@ import requests
 import httpretty
 
 from msrestazure.azure_configuration import AzureConfiguration
-from msrestazure.tools import parse_resource_id, is_valid_resource_id, resource_id
+from msrestazure.tools import parse_resource_id, is_valid_resource_id, resource_id, is_valid_resource_name
 
 class TestTools(unittest.TestCase):
 
@@ -474,6 +474,27 @@ class TestTools(unittest.TestCase):
         for test in tests:
             rsrc_id = resource_id(**test['id_args'])
             self.assertEqual(rsrc_id.lower(), test['resource_id'].lower())
+
+    def test_is_resource_name(self):
+        invalid_names = [
+            '',
+            'knights/ni',
+            'this&that',
+            'i<3you',
+            ''.join('a' for _ in range(261))
+        ]
+
+        for test in invalid_names:
+            self.assertFalse(is_valid_resource_name(test), '"{}" should be invalid'.format(test))
+
+        valid_names = [
+            'abc-123',
+            ' ',  # no one said it had to be a good resource name.
+            ''.join('a' for _ in range(260))
+        ]
+
+        for test in valid_names:
+            self.assertTrue(is_valid_resource_name(test), '"{}" should be valid'.format(test))
 
 
 if __name__ == "__main__":

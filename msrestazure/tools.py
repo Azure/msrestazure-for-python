@@ -38,6 +38,8 @@ _ARMID_RE = re.compile(
 _CHILDREN_RE = re.compile('(?i)(/providers/(?P<child_namespace>[^/]*))?/'
                           '(?P<child_type>[^/]*)/(?P<child_name>[^/]*)')
 
+_ARMNAME_RE = re.compile('^[^<>%&:\\?/]{1,260}$')
+
 def register_rp_hook(r, *args, **kwargs):
     """This is a requests hook to register RP automatically.
 
@@ -243,3 +245,23 @@ def is_valid_resource_id(rid, exception_type=None):
     if not is_valid and exception_type:
         raise exception_type()
     return is_valid
+
+
+def is_valid_resource_name(rname, exception_type=None):
+    """Validates the given resource name to ARM guidelines, individual services may be more restrictive.
+
+    :param rname: The resource name being validated.
+    :type rname: str
+    :param exception_type: Raises this Exception if invalid.
+    :type exception_type: :class:`Exception`
+    :returns: A boolean describing whether the name is valid.
+    :rtype: bool
+    """
+
+    match = _ARMNAME_RE.match(rname)
+
+    if match:
+        return True
+    if exception_type:
+        raise exception_type()
+    return False
