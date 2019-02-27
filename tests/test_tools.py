@@ -485,7 +485,7 @@ class TestTools(unittest.TestCase):
         ]
 
         for test in invalid_names:
-            self.assertFalse(is_valid_resource_name(test), '"{}" should be invalid'.format(test))
+            self.assertFalse(is_valid_resource_name(test))
 
         valid_names = [
             'abc-123',
@@ -494,7 +494,7 @@ class TestTools(unittest.TestCase):
         ]
 
         for test in valid_names:
-            self.assertTrue(is_valid_resource_name(test), '"{}" should be valid'.format(test))
+            self.assertTrue(is_valid_resource_name(test))
 
 
 if __name__ == "__main__":
