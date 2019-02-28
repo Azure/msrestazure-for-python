@@ -481,7 +481,7 @@ class TestTools(unittest.TestCase):
             'knights/ni',
             'spam&eggs',
             'i<3you',
-            ''.join('a' for _ in range(261))
+            'a' * 261,
         ]
 
         for test in invalid_names:
@@ -490,7 +490,7 @@ class TestTools(unittest.TestCase):
         valid_names = [
             'abc-123',
             ' ',  # no one said it had to be a good resource name.
-            ''.join('a' for _ in range(260))
+            'a' * 260,
         ]
 
         for test in valid_names:
