@@ -479,13 +479,13 @@ class TestTools(unittest.TestCase):
         invalid_names = [
             '',
             'knights/ni',
-            'this&that',
+            'spam&eggs',
             'i<3you',
             ''.join('a' for _ in range(261))
         ]
 
         for test in invalid_names:
-            self.assertFalse(is_valid_resource_name(test))
+            assert not is_valid_resource_name(test)
 
         valid_names = [
             'abc-123',
@@ -494,7 +494,7 @@ class TestTools(unittest.TestCase):
         ]
 
         for test in valid_names:
-            self.assertTrue(is_valid_resource_name(test))
+            assert is_valid_resource_name(test)
 
 
 if __name__ == "__main__":
