@@ -32,6 +32,13 @@ from msrest.exceptions import ClientException
 from msrest.serialization import Deserializer
 from msrest.exceptions import DeserializationError
 
+# TimeoutError for backward compat, shouldn't be used in this context otherwise
+class MSIAuthenticationTimeoutError(TimeoutError, ClientException):
+    """If the MSI authentication reached the timeout without getting a token.
+    """
+    pass
+
+
 class CloudErrorRoot(object):
     """Just match the "error" key at the root of a OdataV4 JSON.
     """

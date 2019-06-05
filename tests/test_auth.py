@@ -48,6 +48,7 @@ from msrestazure.azure_active_directory import (
     get_msi_token_webapp
 )
 from msrestazure.azure_cloud import AZURE_CHINA_CLOUD
+from msrestazure.azure_exceptions import MSIAuthenticationTimeoutError
 from msrest.exceptions import TokenExpiredError, AuthenticationError
 
 import pytest
@@ -541,8 +542,36 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         httpretty.register_uri(httpretty.GET,
                                'http://169.254.169.254/metadata/identity/oauth2/token',
                                status=499)
-        with self.assertRaises(HTTPError) as cm:
-            credentials = MSIAuthentication()
+        with self.assertRaises(HTTPError):
+            MSIAuthentication()
+
+    @httpretty.activate
+    def test_msi_vm_imds_timeout_not_used(self):
+        json_payload = {
+            'token_type': "TokenTypeIMDS",
+            "access_token": "AccessToken"
+        }
+        httpretty.register_uri(httpretty.GET,
+                               'http://169.254.169.254/metadata/identity/oauth2/token',
+                               body=json.dumps(json_payload),
+                               content_type="application/json")
+
+        credentials = MSIAuthentication(timeout=15)
+        assert credentials.scheme == "TokenTypeIMDS"
+        assert credentials.token == json_payload
+
+    @httpretty.activate
+    def test_msi_vm_imds_timeout_used(self):
+        # 410 is supposed to wait 70 seconds, but I'm using a timeout, so that should stop at 1 second
+        httpretty.register_uri(httpretty.GET,
+                               'http://169.254.169.254/metadata/identity/oauth2/token',
+                               status=410)
+        httpretty.register_uri(httpretty.GET,
+                               'http://169.254.169.254/metadata/identity/oauth2/token',
+                               status=429)
+
+        with self.assertRaises(MSIAuthenticationTimeoutError):
+            MSIAuthentication(timeout=1)
 
 
 @pytest.mark.slow
