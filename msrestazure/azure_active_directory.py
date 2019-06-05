@@ -648,7 +648,7 @@ class _ImdsTokenProvider(object):
         :returns: True if timeout was used
         """
         if self.timeout:
-            time_to_sleep = min(time_to_wait, start_time + self.timeout - time.time())
+            time_to_sleep = max(0, min(time_to_wait, start_time + self.timeout - time.time()))
         else:
             time_to_sleep = time_to_wait
         time.sleep(time_to_sleep)
