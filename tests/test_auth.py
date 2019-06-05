@@ -570,8 +570,11 @@ class TestServicePrincipalCredentials(unittest.TestCase):
                                'http://169.254.169.254/metadata/identity/oauth2/token',
                                status=429)
 
+        start_time = time.time()
         with self.assertRaises(MSIAuthenticationTimeoutError):
             MSIAuthentication(timeout=1)
+        # Test should take 1 second, but testing against 2 in case machine busy
+        assert time.time() - start_time < 2
 
     @unittest.skipIf(sys.version_info != (2,7), "TimeoutError doesn't exist in Py 2.7")
     @httpretty.activate
