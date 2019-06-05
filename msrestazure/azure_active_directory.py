@@ -545,7 +545,7 @@ class MSIAuthentication(BasicTokenAuthentication):
 
     Optional kwargs may include:
 
-    - timeout: If provided, nust be in seconds and indicates the maximum time we'll try to get a token before raising MSIAuthenticationTimeout
+    - timeout: If provided, must be in seconds and indicates the maximum time we'll try to get a token before raising MSIAuthenticationTimeout
     - client_id: Identifies, by Azure AD client id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with object_id and msi_res_id.
     - object_id: Identifies, by Azure AD object id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with client_id and msi_res_id.
     - msi_res_id: Identifies, by ARM resource id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with client_id and object_id.
@@ -640,7 +640,7 @@ class _ImdsTokenProvider(object):
         return token_entry
 
     def _sleep(self, time_to_wait, start_time):
-        """Sleep for time or time remaiing until max_time.
+        """Sleep for time_to_wait or time remaining until timeout reached.
 
         :param float time: Time to sleep in seconds
         :param float start_time: Absolute time where polling started
