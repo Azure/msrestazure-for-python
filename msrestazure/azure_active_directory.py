@@ -41,7 +41,7 @@ import requests
 
 from msrest.authentication import OAuthTokenAuthentication, Authentication, BasicTokenAuthentication
 from msrest.exceptions import TokenExpiredError as Expired
-from msrest.exceptions import AuthenticationError, raise_with_traceback
+from msrest.exceptions import AuthenticationError, raise_with_traceback, ClientException
 
 from msrestazure.azure_cloud import AZURE_CHINA_CLOUD, AZURE_PUBLIC_CLOUD
 from msrestazure.azure_configuration import AzureConfiguration
@@ -539,11 +539,18 @@ def _is_app_service():
     return 'APPSETTING_WEBSITE_SITE_NAME' in os.environ
 
 
+class MSIAuthenticationTimeout(ClientException):
+    """If the MSI authentication reached the timeout without getting a token.
+    """
+    pass
+
+
 class MSIAuthentication(BasicTokenAuthentication):
     """Credentials object for MSI authentication,.
 
     Optional kwargs may include:
 
+    - timeout: If provided, nust be in seconds and indicates the maximum time we'll try to get a token before raising MSIAuthenticationTimeout
     - client_id: Identifies, by Azure AD client id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with object_id and msi_res_id.
     - object_id: Identifies, by Azure AD object id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with client_id and msi_res_id.
     - msi_res_id: Identifies, by ARM resource id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with client_id and object_id.
@@ -571,7 +578,10 @@ class MSIAuthentication(BasicTokenAuthentication):
                 raise AuthenticationError("User Assigned Entity is not available on WebApp yet.")
         elif "MSI_ENDPOINT" not in os.environ:
             # Use IMDS if no MSI_ENDPOINT
-            self._vm_msi = _ImdsTokenProvider(self.msi_conf)
+            self._vm_msi = _ImdsTokenProvider(
+                self.msi_conf,
+                timeout=kwargs.get("timeout")
+            )
         # Follow the same convention as all Credentials class to check for the token at creation time #106
         self.set_token()
 
@@ -603,8 +613,7 @@ class _ImdsTokenProvider(object):
     """A help class handling token acquisitions through Azure IMDS plugin.
     """
 
-    def __init__(self, msi_conf=None):
-        self._user_agent = AzureConfiguration(None).user_agent
+    def __init__(self, msi_conf=None, timeout=None):
         self.identity_type, self.identity_id = None, None
         if msi_conf:
             if len(msi_conf.keys()) > 1:
@@ -614,6 +623,7 @@ class _ImdsTokenProvider(object):
         # default to system assigned identity on an empty configuration object
 
         self.cache = {}
+        self.timeout = timeout
 
     def get_token(self, resource):
         import datetime
