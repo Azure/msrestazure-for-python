@@ -573,6 +573,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
         with self.assertRaises(MSIAuthenticationTimeoutError):
             MSIAuthentication(timeout=1)
 
+    @unittest.skipIf(sys.version_info != (2,7), "TimeoutError doesn't exist in Py 2.7")
     @httpretty.activate
     def test_msi_vm_imds_timeout_used_timeouterror(self):
         # 410 is supposed to wait 70 seconds, but I'm using a timeout, so that should stop at 1 second
