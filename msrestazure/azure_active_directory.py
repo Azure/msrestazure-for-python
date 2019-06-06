@@ -647,7 +647,7 @@ class _ImdsTokenProvider(object):
         :rtype: bool
         :returns: True if timeout was used
         """
-        if self.timeout:
+        if self.timeout is not None:  # 0 is acceptable value, so we really want to test None
             time_to_sleep = max(0, min(time_to_wait, start_time + self.timeout - time.time()))
         else:
             time_to_sleep = time_to_wait
@@ -669,7 +669,7 @@ class _ImdsTokenProvider(object):
         retry, max_retry, start_time = 1, 12, time.time()
         # simplified version of https://en.wikipedia.org/wiki/Exponential_backoff
         slots = [100 * ((2 << x) - 1) / 1000 for x in range(max_retry)]
-        has_timed_out = False
+        has_timed_out = self.timeout == 0 # Assume a 0 timeout means "no more than one try"
         while True:
             result = requests.get(request_uri, params=payload, headers={'Metadata': 'true', 'User-Agent':self._user_agent})
             _LOGGER.debug("MSI: Retrieving a token from %s, with payload %s", request_uri, payload)
