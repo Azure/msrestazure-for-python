@@ -203,15 +203,17 @@ class CloudError(ClientException):
         return "Resource state {}".format(state) if state else "none"
 
     def _build_error_message(self, response):
+        # Assume ClientResponse has "body", and otherwise it's a requests.Response
+        content = response.text() if hasattr(response, "body") else response.text
         try:
-            data = response.json()
+            data = json.loads(content)
         except ValueError:
             message = "none"
         else:
             try:
                 message = data.get("message", self._get_state(data))
             except AttributeError: # data is not a dict, but is a requests.Response parsable as JSON
-                message = str(response.text)
+                message = str(content)
         try:
             response.raise_for_status()
         except RequestException as err:

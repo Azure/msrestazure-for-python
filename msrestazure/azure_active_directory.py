@@ -485,7 +485,7 @@ def get_msi_token(resource, port=50342, msi_conf=None):
         result.raise_for_status()
     except Exception as ex:  # pylint: disable=broad-except
         _LOGGER.warning("MSI: Failed to retrieve a token from '%s' with an error of '%s'. This could be caused "
-                        "by the MSI extension not yet fullly provisioned.",
+                        "by the MSI extension not yet fully provisioned.",
                         request_uri, ex)
         raise
     token_entry = result.json()

@@ -393,7 +393,7 @@ class TestServicePrincipalCredentials(unittest.TestCase):
 
         credentials = AdalAuthentication(success_auth)
         session = credentials.signed_session()
-        self.assertEquals(session.headers['Authorization'], 'https cryptictoken')
+        self.assertEqual(session.headers['Authorization'], 'https cryptictoken')
 
         def error():
             raise adal.AdalError("You hacker", {})

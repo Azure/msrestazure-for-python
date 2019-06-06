@@ -11,4 +11,5 @@ mock = {markers="python_version<='2.7'"}
 httpretty = '*'
 pytest = '*'
 pytest-cov = '*'
+pytest-asyncio = {version = "*", markers="python_version >= '3.5'"}
 pylint = '*'

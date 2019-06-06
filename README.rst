@@ -20,6 +20,19 @@ To install:
 Release History
 ---------------
 
+2018-12-17 Version 0.6.0
+++++++++++++++++++++++++
+
+**Features**
+
+- Implementation of LRO async, based on msrest 0.6.x series (*experimental*)
+
+**Disclaimer**
+
+- This version contains no direct breaking changes, but is bumped to 0.6.x since it requires a breaking change version of msrest.
+
+Thanks to @gison93 for his documentation contribution
+
 2018-11-01 Version 0.5.1
 ++++++++++++++++++++++++
 
