@@ -33,7 +33,7 @@ from msrest.serialization import Deserializer
 from msrest.exceptions import DeserializationError
 
 # TimeoutError for backward compat since it was used by former MSI code.
-# but this never worked on Python 2.7, so Python 2.7 user gets the correctone
+# but this never worked on Python 2.7, so Python 2.7 users get the correct one now
 try:
     class MSIAuthenticationTimeoutError(TimeoutError, ClientException):
         """If the MSI authentication reached the timeout without getting a token.
