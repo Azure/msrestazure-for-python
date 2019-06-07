@@ -20,6 +20,14 @@ To install:
 Release History
 ---------------
 
+2019-06-10 Version 0.6.1
+++++++++++++++++++++++++
+
+**Features**
+
+- Add User Assigned identity support for WebApp/Functions #124
+- Ass timeout parameter for MSI token, is used from a VM #131
+
 2018-12-17 Version 0.6.0
 ++++++++++++++++++++++++
 
