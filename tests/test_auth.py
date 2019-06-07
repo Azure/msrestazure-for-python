@@ -48,6 +48,7 @@ from msrestazure.azure_active_directory import (
     get_msi_token_webapp
 )
 from msrestazure.azure_cloud import AZURE_CHINA_CLOUD
+from msrestazure.azure_exceptions import MSIAuthenticationTimeoutError
 from msrest.exceptions import TokenExpiredError, AuthenticationError
 
 import pytest
@@ -535,37 +536,96 @@ class TestServicePrincipalCredentials(unittest.TestCase):
 
     @httpretty.activate
     def test_msi_vm_imds_retry(self):
-
         json_payload = {
             'token_type': "TokenTypeIMDS",
             "access_token": "AccessToken"
         }
         httpretty.register_uri(httpretty.GET,
                                'http://169.254.169.254/metadata/identity/oauth2/token',
-                               status=404)
-        httpretty.register_uri(httpretty.GET,
-                               'http://169.254.169.254/metadata/identity/oauth2/token',
-                               status=429)
-        httpretty.register_uri(httpretty.GET,
-                               'http://169.254.169.254/metadata/identity/oauth2/token',
-                               status=599)
-        httpretty.register_uri(httpretty.GET,
-                               'http://169.254.169.254/metadata/identity/oauth2/token',
-                               body=json.dumps(json_payload),
+                               responses=[
+                                   httpretty.Response('', status=404),
+                                   httpretty.Response('', status=429),
+                                   httpretty.Response('', status=599),
+                                   httpretty.Response(body=json.dumps(json_payload)),
+                               ],
                                content_type="application/json")
+
         credentials = MSIAuthentication()
         assert credentials.scheme == "TokenTypeIMDS"
         assert credentials.token == json_payload
 
+        # Assert four requests made only
+        assert len(httpretty.httpretty.latest_requests) == 4
+
 
     @httpretty.activate
     def test_msi_vm_imds_no_retry_on_bad_error(self):
-
+        """Check that 499 throws immediatly."""
         httpretty.register_uri(httpretty.GET,
                                'http://169.254.169.254/metadata/identity/oauth2/token',
                                status=499)
-        with self.assertRaises(HTTPError) as cm:
-            credentials = MSIAuthentication()
+        with self.assertRaises(HTTPError):
+            MSIAuthentication()
+
+        # Assert one request made only
+        assert len(httpretty.httpretty.latest_requests) == 1
+
+    @httpretty.activate
+    def test_msi_vm_imds_timeout_not_used(self):
+        """Check that using timeout still allows a successfull scenario to pass."""
+        json_payload = {
+            'token_type': "TokenTypeIMDS",
+            "access_token": "AccessToken"
+        }
+        httpretty.register_uri(httpretty.GET,
+                               'http://169.254.169.254/metadata/identity/oauth2/token',
+                               body=json.dumps(json_payload),
+                               content_type="application/json")
+
+        credentials = MSIAuthentication(timeout=15)
+        assert credentials.scheme == "TokenTypeIMDS"
+        assert credentials.token == json_payload
+
+    @httpretty.activate
+    def test_msi_vm_imds_timeout_used(self):
+        """Will loop on 410 until timeout is reached."""
+        httpretty.register_uri(httpretty.GET,
+                               'http://169.254.169.254/metadata/identity/oauth2/token',
+                               status=410)
+
+        start_time = time.time()
+        with self.assertRaises(MSIAuthenticationTimeoutError):
+            MSIAuthentication(timeout=1)
+        # Test should take 1 second, but testing against 2 in case machine busy
+        assert time.time() - start_time < 2
+        # Assert at least two requests have been made
+        assert len(httpretty.httpretty.latest_requests) >= 2
+
+    @httpretty.activate
+    def test_msi_vm_imds_timeout_zero_used(self):
+        """If zero timeout, should do a try and fail immediatly."""
+        httpretty.register_uri(httpretty.GET,
+                               'http://169.254.169.254/metadata/identity/oauth2/token',
+                               status=410)
+
+        with self.assertRaises(MSIAuthenticationTimeoutError):
+            MSIAuthentication(timeout=0)
+        # Assert one request made only
+        assert len(httpretty.httpretty.latest_requests) == 1
+
+    @unittest.skipIf(sys.version_info != (2,7), "TimeoutError doesn't exist in Py 2.7")
+    @httpretty.activate
+    def test_msi_vm_imds_timeout_used_timeouterror(self):
+        """Will loop on 410 until timeout is reached."""
+        httpretty.register_uri(httpretty.GET,
+                               'http://169.254.169.254/metadata/identity/oauth2/token',
+                               status=410)
+
+        # Verify that I can catch TimeoutError as well
+        with self.assertRaises(TimeoutError):
+            MSIAuthentication(timeout=1)
+        # Assert at two requests made only
+        assert len(httpretty.httpretty.latest_requests) >= 2
 
 
 @pytest.mark.slow

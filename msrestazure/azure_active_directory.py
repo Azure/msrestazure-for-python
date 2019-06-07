@@ -45,6 +45,7 @@ from msrest.exceptions import AuthenticationError, raise_with_traceback
 
 from msrestazure.azure_cloud import AZURE_CHINA_CLOUD, AZURE_PUBLIC_CLOUD
 from msrestazure.azure_configuration import AzureConfiguration
+from msrestazure.azure_exceptions import MSIAuthenticationTimeoutError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -558,6 +559,7 @@ class MSIAuthentication(BasicTokenAuthentication):
 
     Optional kwargs may include:
 
+    - timeout: If provided, must be in seconds and indicates the maximum time we'll try to get a token before raising MSIAuthenticationTimeout
     - client_id: Identifies, by Azure AD client id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with object_id and msi_res_id.
     - object_id: Identifies, by Azure AD object id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with client_id and msi_res_id.
     - msi_res_id: Identifies, by ARM resource id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with client_id and object_id.
@@ -582,7 +584,10 @@ class MSIAuthentication(BasicTokenAuthentication):
 
         if not _is_app_service() and "MSI_ENDPOINT" not in os.environ:
             # Use IMDS if no MSI_ENDPOINT
-            self._vm_msi = _ImdsTokenProvider(self.msi_conf)
+            self._vm_msi = _ImdsTokenProvider(
+                self.msi_conf,
+                timeout=kwargs.get("timeout")
+            )
         # Follow the same convention as all Credentials class to check for the token at creation time #106
         self.set_token()
 
@@ -614,7 +619,7 @@ class _ImdsTokenProvider(object):
     """A help class handling token acquisitions through Azure IMDS plugin.
     """
 
-    def __init__(self, msi_conf=None):
+    def __init__(self, msi_conf=None, timeout=None):
         self._user_agent = AzureConfiguration(None).user_agent
         self.identity_type, self.identity_id = None, None
         if msi_conf:
@@ -625,6 +630,7 @@ class _ImdsTokenProvider(object):
         # default to system assigned identity on an empty configuration object
 
         self.cache = {}
+        self.timeout = timeout
 
     def get_token(self, resource):
         import datetime
@@ -644,6 +650,21 @@ class _ImdsTokenProvider(object):
         self.cache[resource] = token_entry
         return token_entry
 
+    def _sleep(self, time_to_wait, start_time):
+        """Sleep for time_to_wait or time remaining until timeout reached.
+
+        :param float time: Time to sleep in seconds
+        :param float start_time: Absolute time where polling started
+        :rtype: bool
+        :returns: True if timeout was used
+        """
+        if self.timeout is not None:  # 0 is acceptable value, so we really want to test None
+            time_to_sleep = max(0, min(time_to_wait, start_time + self.timeout - time.time()))
+        else:
+            time_to_sleep = time_to_wait
+        time.sleep(time_to_sleep)
+        return time_to_sleep != time_to_wait
+
     def _retrieve_token_from_imds_with_retry(self, resource):
         import random
         import json
@@ -659,21 +680,24 @@ class _ImdsTokenProvider(object):
         retry, max_retry, start_time = 1, 12, time.time()
         # simplified version of https://en.wikipedia.org/wiki/Exponential_backoff
         slots = [100 * ((2 << x) - 1) / 1000 for x in range(max_retry)]
+        has_timed_out = self.timeout == 0 # Assume a 0 timeout means "no more than one try"
         while True:
             result = requests.get(request_uri, params=payload, headers={'Metadata': 'true', 'User-Agent':self._user_agent})
             _LOGGER.debug("MSI: Retrieving a token from %s, with payload %s", request_uri, payload)
             if result.status_code in [404, 410, 429] or (499 < result.status_code < 600):
-                if retry <= max_retry:
+                if has_timed_out:  # It was the last try, and we still don't get a good status code, die
+                    raise MSIAuthenticationTimeoutError('MSI: Failed to acquired tokens before timeout {}'.format(self.timeout))
+                elif retry <= max_retry:
                     wait = random.choice(slots[:retry])
                     _LOGGER.warning("MSI: wait: %ss and retry: %s", wait, retry)
-                    time.sleep(wait)
+                    has_timed_out = self._sleep(wait, start_time)
                     retry += 1
                 else:
                     if result.status_code == 410:  # For IMDS upgrading, we wait up to 70s
                         gap = 70 - (time.time() - start_time)
                         if gap > 0:
                             _LOGGER.warning("MSI: wait till 70 seconds when IMDS is upgrading")
-                            time.sleep(gap)
+                            has_timed_out = self._sleep(gap, start_time)
                             continue
                     break
             elif result.status_code != 200:
@@ -682,7 +706,7 @@ class _ImdsTokenProvider(object):
                 break
 
         if result.status_code != 200:
-            raise TimeoutError('MSI: Failed to acquire tokens after {} times'.format(max_retry))
+            raise MSIAuthenticationTimeoutError('MSI: Failed to acquire tokens after {} times'.format(max_retry))
 
         _LOGGER.debug('MSI: Token retrieved')
         token_entry = json.loads(result.content.decode())
