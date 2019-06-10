@@ -26,7 +26,7 @@ Release History
 **Features**
 
 - Add User Assigned identity support for WebApp/Functions #124
-- Ass timeout parameter for MSI token, is used from a VM #131
+- Add timeout parameter for MSI token, is used from a VM #131
 
 Thanks to @noelbundick for his contribution
 
