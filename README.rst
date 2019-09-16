@@ -20,6 +20,13 @@ To install:
 Release History
 ---------------
 
+2019-09-16 Version 0.6.2
+++++++++++++++++++++++++
+
+**Bugfix**
+
+- Fix ARM error parsing if Type info is used  #135
+
 2019-06-10 Version 0.6.1
 ++++++++++++++++++++++++
 
