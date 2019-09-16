@@ -167,7 +167,7 @@ class CloudError(ClientException):
         self.deserializer = Deserializer({
             'CloudErrorRoot': CloudErrorRoot,
             'CloudErrorData': CloudErrorData,
-            'TypedErroInfo': TypedErrorInfo
+            'TypedErrorInfo': TypedErrorInfo
         })
         self.error = None
         self.message = None

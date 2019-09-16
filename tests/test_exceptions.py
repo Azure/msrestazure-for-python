@@ -252,6 +252,55 @@ class TestCloudException(unittest.TestCase):
         error = CloudError(response)
         self.assertIn(response.text, error.message)
 
+        response._content = json.dumps({
+	"error": {
+		"code": "InvalidTemplateDeployment",
+		"message": "The template deployment failed because of policy violation. Please see details for more information.",
+		"details": [{
+			"code": "RequestDisallowedByPolicy",
+			"target": "vm1",
+			"message": "Resource 'vm1' was disallowed by policy. Policy identifiers: '[{\"policyAssignment\":{\"name\":\"Allowed virtual machine SKUs\",\"id\":\"/subscriptions/0b1f6471-1bf0-4dda-aec3-cb9272f09590/resourceGroups/fytest/providers/Microsoft.Authorization/policyAssignments/9c95e7fe8227466b82f48228\"},\"policyDefinition\":{\"name\":\"Allowed virtual machine SKUs\",\"id\":\"/providers/Microsoft.Authorization/policyDefinitions/cccc23c7-8427-4f53-ad12-b6a63eb452b3\"}}]'.",
+			"additionalInfo": [{
+				"type": "PolicyViolation",
+				"info": {
+					"policyDefinitionDisplayName": "Allowed virtual machine SKUs",
+					"evaluationDetails": {
+						"evaluatedExpressions": [{
+							"result": "True",
+							"expression": "type",
+							"path": "type",
+							"expressionValue": "Microsoft.Compute/virtualMachines",
+							"targetValue": "Microsoft.Compute/virtualMachines",
+							"operator": "Equals"
+						}, {
+							"result": "False",
+							"expression": "Microsoft.Compute/virtualMachines/sku.name",
+							"path": "properties.hardwareProfile.vmSize",
+							"expressionValue": "Standard_DS1_v2",
+							"targetValue": ["Basic_A0"],
+							"operator": "In"
+						}]
+					},
+					"policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/cccc23c7-8427-4f53-ad12-b6a63eb452b3",
+					"policyDefinitionName": "cccc23c7-8427-4f53-ad12-b6a63eb452b3",
+					"policyDefinitionEffect": "Deny",
+					"policyAssignmentId": "/subscriptions/0b1f6471-1bf0-4dda-aec3-cb9272f09590/resourceGroups/fytest/providers/Microsoft.Authorization/policyAssignments/9c95e7fe8227466b82f48228",
+					"policyAssignmentName": "9c95e7fe8227466b82f48228",
+					"policyAssignmentDisplayName": "Allowed virtual machine SKUs",
+					"policyAssignmentScope": "/subscriptions/0b1f6471-1bf0-4dda-aec3-cb9272f09590/resourceGroups/fytest",
+					"policyAssignmentParameters": {
+						"listOfAllowedSKUs": {
+							"value": ["Basic_A0"]
+						}
+					}
+				}
+			}]
+		}]
+	}
+}).encode('utf-8')
+
+        error = CloudError(response)
+        assert error.message == "The template deployment failed because of policy violation. Please see details for more information."
 
 if __name__ == '__main__':
     unittest.main()
