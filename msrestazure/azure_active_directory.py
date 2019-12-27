@@ -701,6 +701,8 @@ class _ImdsTokenProvider(object):
                             continue
                     break
             elif result.status_code != 200:
+                # Hack, see https://github.com/Azure/msrestazure-for-python/issues/134
+                result.raw.content = response.content
                 raise HTTPError(request=result.request, response=result.raw)
             else:
                 break
