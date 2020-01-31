@@ -514,7 +514,7 @@ class AzureOperationPoller(object):
 
         :returns: 'True' if the process has completed, else 'False'.
         """
-        return self._thread is None or not self._thread.isAlive()
+        return self._thread is None or not self._thread.is_alive()
 
     def add_done_callback(self, func):
         """Add callback function to be run once the long running operation
