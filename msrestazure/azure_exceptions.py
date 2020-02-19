@@ -117,7 +117,7 @@ class CloudErrorData(object):
             for error_info in self.additionalInfo:
                 error_str += "\n\t{}".format(str(error_info).replace("\n", "\n\t"))
         error_bytes = error_str.encode()
-        return error_bytes.decode('ascii')
+        return error_bytes.decode('utf8')
 
     @classmethod
     def _get_subtype_map(cls):
