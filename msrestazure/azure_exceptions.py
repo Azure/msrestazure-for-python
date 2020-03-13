@@ -263,5 +263,4 @@ class TypedErrorInfo(object):
         """Cloud error message."""
         error_str = "Type: {}".format(self.type)
         error_str += "\nInfo: {}".format(json.dumps(self.info, indent=4))
-        error_bytes = error_str.encode()
-        return error_bytes.decode('ascii')
+        return error_str
