@@ -20,6 +20,19 @@ To install:
 Release History
 ---------------
 
+2020-03-17 Version 0.6.3
+
+**Bugfix**
+
+- Unable to raise exception if JSON body contains UTF-8 characters  #144
+- Prepare old poller implementation to Python 3.9  #138
+
+**Features**
+
+- Add Microsoft Graph to Cloud environment  #142
+
+Thanks to @psignoret and @tirkarthi for his contribution
+
 2019-09-16 Version 0.6.2
 ++++++++++++++++++++++++
 
