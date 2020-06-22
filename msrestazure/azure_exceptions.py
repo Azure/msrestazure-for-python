@@ -25,6 +25,7 @@
 # --------------------------------------------------------------------------
 
 import json
+import six
 
 from requests import RequestException
 
@@ -55,6 +56,15 @@ class CloudErrorRoot(object):
     def __init__(self, error):
         self.error = error
 
+
+def _unicode_or_str(obj):
+    try:
+        return unicode(obj)
+    except NameError:
+        return str(obj)
+
+
+@six.python_2_unicode_compatible
 class CloudErrorData(object):
     """Cloud Error Data object, deserialized from error data returned
     during a failed REST API call.
@@ -85,37 +95,37 @@ class CloudErrorData(object):
 
     def __str__(self):
         """Cloud error message."""
-        error_str = "Azure Error: {}".format(self.error)
-        error_str += "\nMessage: {}".format(self._message)
+        error_str = u"Azure Error: {}".format(self.error)
+        error_str += u"\nMessage: {}".format(self._message)
         if self.target:
-            error_str += "\nTarget: {}".format(self.target)
+            error_str += u"\nTarget: {}".format(self.target)
         if self.request_id:
-            error_str += "\nRequest ID: {}".format(self.request_id)
+            error_str += u"\nRequest ID: {}".format(self.request_id)
         if self.error_time:
-            error_str += "\nError Time: {}".format(self.error_time)
+            error_str += u"\nError Time: {}".format(self.error_time)
         if self.data:
-            error_str += "\nAdditional Data:"
+            error_str += u"\nAdditional Data:"
             for key, value in self.data.items():
-                error_str += "\n\t{} : {}".format(key, value)
+                error_str += u"\n\t{} : {}".format(key, value)
         if self.details:
             error_str += "\nException Details:"
             for error_obj in self.details:
-                error_str += "\n\tError Code: {}".format(error_obj.error)
-                error_str += "\n\tMessage: {}".format(error_obj.message)
+                error_str += u"\n\tError Code: {}".format(error_obj.error)
+                error_str += u"\n\tMessage: {}".format(error_obj.message)
                 if error_obj.target:
-                    error_str += "\n\tTarget: {}".format(error_obj.target)
+                    error_str += u"\n\tTarget: {}".format(error_obj.target)
                 if error_obj.innererror:
-                    error_str += "\nInner error: {}".format(json.dumps(error_obj.innererror, indent=4))
+                    error_str += u"\nInner error: {}".format(json.dumps(error_obj.innererror, indent=4))
                 if error_obj.additionalInfo:
-                    error_str += "\n\tAdditional Information:"
+                    error_str += u"\n\tAdditional Information:"
                     for error_info in error_obj.additionalInfo:
-                        error_str += "\n\t\t{}".format(str(error_info).replace("\n", "\n\t\t"))
+                        error_str += "\n\t\t{}".format(_unicode_or_str(error_info).replace("\n", "\n\t\t"))
         if self.innererror:
-            error_str += "\nInner error: {}".format(json.dumps(self.innererror, indent=4))
+            error_str += u"\nInner error: {}".format(json.dumps(self.innererror, indent=4))
         if self.additionalInfo:
             error_str += "\nAdditional Information:"
             for error_info in self.additionalInfo:
-                error_str += "\n\t{}".format(str(error_info).replace("\n", "\n\t"))
+                error_str += u"\n\t{}".format(_unicode_or_str(error_info).replace("\n", "\n\t"))
         return error_str
 
     @classmethod
@@ -153,6 +163,7 @@ class CloudErrorData(object):
             pass
 
 
+@six.python_2_unicode_compatible
 class CloudError(ClientException):
     """ClientError, exception raised for failed Azure REST call.
     Will attempt to deserialize response into meaningful error
@@ -189,8 +200,8 @@ class CloudError(ClientException):
     def __str__(self):
         """Cloud error message"""
         if self.error:
-            return str(self.error)
-        return str(self.message)
+            return _unicode_or_str(self.error)
+        return _unicode_or_str(self.message)
 
     def _build_error_data(self, response):
         try:
@@ -244,6 +255,8 @@ class CloudError(ClientException):
                 self.message = msg.format(
                     response.status_code, message)
 
+
+@six.python_2_unicode_compatible
 class TypedErrorInfo(object):
     """Typed Error Info object, deserialized from error data returned
     during a failed REST API call. Contains additional error information
@@ -261,6 +274,6 @@ class TypedErrorInfo(object):
 
     def __str__(self):
         """Cloud error message."""
-        error_str = "Type: {}".format(self.type)
-        error_str += "\nInfo: {}".format(json.dumps(self.info, indent=4))
+        error_str = u"Type: {}".format(self.type)
+        error_str += u"\nInfo: {}".format(json.dumps(self.info, indent=4))
         return error_str
