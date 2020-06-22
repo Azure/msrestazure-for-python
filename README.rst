@@ -20,6 +20,14 @@ To install:
 Release History
 ---------------
 
+2020-XX-XX Version 0.6.4
+++++++++++++++++++++++++
+
+**Bugfix**
+
+- Unable to raise exception if JSON body contains UTF-8 characters on Python 2 #150
+
+
 2020-03-17 Version 0.6.3
 ++++++++++++++++++++++++
 
