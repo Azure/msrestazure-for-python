@@ -34,7 +34,7 @@ matrix:
     - python: 3.7
       env: TOXENV=py37-autorest
       <<: *_autorest_install
-      - python: 3.8
+    - python: 3.8
       env: TOXENV=py38-autorest
       <<: *_autorest_install
   allow_failures:
