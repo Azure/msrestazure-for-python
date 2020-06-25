@@ -115,13 +115,13 @@ class CloudErrorData(object):
                 if error_obj.target:
                     error_str += u"\n\tTarget: {}".format(error_obj.target)
                 if error_obj.innererror:
-                    error_str += u"\nInner error: {}".format(json.dumps(error_obj.innererror, indent=4))
+                    error_str += u"\nInner error: {}".format(json.dumps(error_obj.innererror, indent=4, ensure_ascii=False))
                 if error_obj.additionalInfo:
                     error_str += u"\n\tAdditional Information:"
                     for error_info in error_obj.additionalInfo:
                         error_str += "\n\t\t{}".format(_unicode_or_str(error_info).replace("\n", "\n\t\t"))
         if self.innererror:
-            error_str += u"\nInner error: {}".format(json.dumps(self.innererror, indent=4))
+            error_str += u"\nInner error: {}".format(json.dumps(self.innererror, indent=4, ensure_ascii=False))
         if self.additionalInfo:
             error_str += "\nAdditional Information:"
             for error_info in self.additionalInfo:
@@ -275,5 +275,5 @@ class TypedErrorInfo(object):
     def __str__(self):
         """Cloud error message."""
         error_str = u"Type: {}".format(self.type)
-        error_str += u"\nInfo: {}".format(json.dumps(self.info, indent=4))
+        error_str += u"\nInfo: {}".format(json.dumps(self.info, indent=4, ensure_ascii=False))
         return error_str
