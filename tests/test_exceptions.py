@@ -1,4 +1,5 @@
-﻿#--------------------------------------------------------------------------
+﻿# -*- coding: utf-8 -*-
+#--------------------------------------------------------------------------
 #
 # Copyright (c) Microsoft Corporation. All rights reserved.
 #
@@ -203,6 +204,18 @@ class TestCloudException(unittest.TestCase):
         self.assertEqual(error.message, "Request failed with bad status")
         self.assertEqual(error.status_code, 400)
         self.assertIsInstance(error.error, Response)
+
+        message = { 'error': {
+            'code': '500',
+            'message': u"ééééé",
+            }}
+        response._content = json.dumps(message).encode("utf-8")
+        error = CloudError(response)
+        try:  # Python 2
+            assert u"ééééé" in unicode(error)
+            assert u"ééééé".encode("utf-8") in str(error)
+        except NameError:  # Python 3
+            assert "ééééé" in str(error)
 
         response._content = b"{{"
         error = CloudError(response)
