@@ -1,9 +1,0 @@
-{
-    "git.ignoreLimitWarning": true,
-    "python.testing.pytestArgs": [],
-    "python.testing.pytestEnabled": true,
-    "files.exclude": {
-        "**/*.pyc": true,
-        "**/__pycache__": true
-    }
-}
