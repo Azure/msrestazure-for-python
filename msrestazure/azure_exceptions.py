@@ -223,7 +223,7 @@ class CloudError(ClientException):
         if not state:
             resource_content = content.get('properties', content)
             state = resource_content.get("provisioningState")
-        return "Resource state {}".format(state) if state else "none"
+        return u"Resource state {}".format(state) if state else "none"
 
     def _build_error_message(self, response):
         # Assume ClientResponse has "body", and otherwise it's a requests.Response
@@ -244,14 +244,14 @@ class CloudError(ClientException):
                 self.error = err
             if not self.message:
                 if message == "none":
-                    message = str(err)
-                msg = "Operation failed with status: {!r}. Details: {}"
+                    message = _unicode_or_str(err.message if hasattr(err, "message") else err)
+                msg = u"Operation failed with status: {!r}. Details: {}"
                 self.message = msg.format(response.reason, message)
         else:
             if not self.error:
                 self.error = response
             if not self.message:
-                msg = "Operation failed with status: {!r}. Details: {}"
+                msg = u"Operation failed with status: {!r}. Details: {}"
                 self.message = msg.format(
                     response.status_code, message)
 
