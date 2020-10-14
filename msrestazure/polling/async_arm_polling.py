@@ -102,7 +102,7 @@ class AsyncARMPolling(ARMPolling):
             self._response = await self.request_status(self._operation.location_url)
             self._operation.set_async_url_if_present(self._response)
             self._operation.get_status_from_location(self._response)
-        elif self._operation.method == "PUT":
+        elif self._operation.method == in ("PUT", "PATCH"):
             initial_url = self._operation.initial_response.request.url
             self._response = await self.request_status(initial_url)
             self._operation.set_async_url_if_present(self._response)

@@ -331,7 +331,7 @@ class LongRunningOperation(object):
             return self.async_url
         elif self.location_url:
             return self.location_url
-        elif self.method == "PUT":
+        elif self.method in ("PUT", "PATCH"):
             return self.initial_response.request.url
         else:
             raise BadResponse("Unable to find a valid status link for polling")
@@ -447,7 +447,7 @@ class ARMPolling(PollingMethod):
             self._response = self.request_status(self._operation.location_url)
             self._operation.set_async_url_if_present(self._response)
             self._operation.get_status_from_location(self._response)
-        elif self._operation.method == "PUT":
+        elif self._operation.method in ("PUT", "PATCH"):
             initial_url = self._operation.initial_response.request.url
             self._response = self.request_status(initial_url)
             self._operation.set_async_url_if_present(self._response)
