@@ -180,11 +180,11 @@ class TestCloudException(unittest.TestCase):
     def test_cloud_error(self):
 
         response = Response()
-        response._content = br'{"real": true}'  # Has to be valid bytes JSON
+        response._content = br'{"real": true, "status": "BadRequ\u0454st"}'  # Has to be valid bytes JSON
         response._content_consumed = True
-        response.status_code = 400
+        response.status_code = 200
         response.headers = {"content-type": "application/json; charset=utf8"}
-        response.reason = 'BadRequest'
+        response.reason = u'BadRequ\u0454st'
 
         message = { 'error': {
             'code': '500',
@@ -192,6 +192,13 @@ class TestCloudException(unittest.TestCase):
             'values': {'invalid_attribute':'data'}
             }}
 
+        CloudError(response)
+
+        response.status_code = 400
+        response._content = br'{"real": true}'
+        CloudError(response)
+
+        response.reason = 'BadRequest'
         response._content = json.dumps(message).encode("utf-8")
 
         error = CloudError(response)
