@@ -218,6 +218,11 @@ def _populate_from_metadata_endpoint(cloud, arm_endpoint, session=None):
                 msg = '{} not found.'.format(cloud.name)
                 raise MetadataEndpointError(error_msg_fmt.format(msg))
             metadata = clouds[cloud.name]
+            resource_manager = metadata.get('resourceManager')
+            if not resource_manager:
+                resource_manager = arm_endpoint
+            setattr(cloud.endpoints, 'management', resource_manager)
+            setattr(cloud.endpoints, 'resource_manager', resource_manager)
             if not cloud.endpoints.has_endpoint_set('gallery'):
                 setattr(cloud.endpoints, 'gallery', metadata.get('gallery'))
             if not cloud.endpoints.has_endpoint_set('active_directory_graph_resource_id'):
@@ -255,7 +260,5 @@ def get_cloud_from_metadata_endpoint(arm_endpoint, name=None, session=None):
     :raises: MetadataEndpointError if unable to build the Cloud object
     """
     cloud = Cloud(name or arm_endpoint)
-    cloud.endpoints.management = arm_endpoint
-    cloud.endpoints.resource_manager = arm_endpoint
     _populate_from_metadata_endpoint(cloud, arm_endpoint, session)
     return cloud
