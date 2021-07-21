@@ -31,8 +31,7 @@ from pprint import pformat
 _LOGGER = logging.getLogger(__name__)
 
 
-# The exact API version doesn't matter too much right now. It just has to be YYYY-MM-DD format.
-METADATA_ENDPOINT_SUFFIX = '/metadata/endpoints?api-version=2015-01-01'
+METADATA_ENDPOINT_SUFFIX = '/metadata/endpoints?api-version=2020-06-01'
 
 class CloudEndpointNotSetException(Exception):
     pass
@@ -214,10 +213,15 @@ def _populate_from_metadata_endpoint(cloud, arm_endpoint, session=None):
         response = session.get(metadata_endpoint)
         if response.status_code == 200:
             metadata = response.json()
+            clouds = dict(map(lambda cloud: (cloud['name'], cloud), metadata))
+            if not cloud.name in clouds:
+                msg = '{} not found.'.format(cloud.name)
+                raise MetadataEndpointError(error_msg_fmt.format(msg))
+            metadata = clouds[cloud.name]
             if not cloud.endpoints.has_endpoint_set('gallery'):
-                setattr(cloud.endpoints, 'gallery', metadata.get('galleryEndpoint'))
+                setattr(cloud.endpoints, 'gallery', metadata.get('gallery'))
             if not cloud.endpoints.has_endpoint_set('active_directory_graph_resource_id'):
-                setattr(cloud.endpoints, 'active_directory_graph_resource_id', metadata.get('graphEndpoint'))
+                setattr(cloud.endpoints, 'active_directory_graph_resource_id', metadata.get('graph'))
             if not cloud.endpoints.has_endpoint_set('active_directory'):
                 setattr(cloud.endpoints, 'active_directory', metadata['authentication'].get('loginEndpoint'))
             if not cloud.endpoints.has_endpoint_set('active_directory_resource_id'):
