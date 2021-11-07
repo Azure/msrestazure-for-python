@@ -641,7 +641,7 @@ class _ImdsTokenProvider(object):
             expires_on_datetime = datetime.datetime.fromtimestamp(expires_on)
             expiration_margin = 5  # in minutes
             if datetime.datetime.now() + datetime.timedelta(minutes=expiration_margin) <= expires_on_datetime:
-                _LOGGER.info("MSI: token is found in cache.")
+                _LOGGER.debug("MSI: token is found in cache.")
                 return token_entry
             _LOGGER.info("MSI: cache is found but expired within %s minutes, so getting a new one.", expiration_margin)
             self.cache.pop(resource)
