@@ -559,6 +559,7 @@ class MSIAuthentication(BasicTokenAuthentication):
 
     Optional kwargs may include:
 
+    - request_timeout: If provided, must be in seconds and indicates the maximum time we will wait for a response from IMDS
     - timeout: If provided, must be in seconds and indicates the maximum time we'll try to get a token before raising MSIAuthenticationTimeout
     - client_id: Identifies, by Azure AD client id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with object_id and msi_res_id.
     - object_id: Identifies, by Azure AD object id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with client_id and msi_res_id.
@@ -586,7 +587,8 @@ class MSIAuthentication(BasicTokenAuthentication):
             # Use IMDS if no MSI_ENDPOINT
             self._vm_msi = _ImdsTokenProvider(
                 self.msi_conf,
-                timeout=kwargs.get("timeout")
+                timeout=kwargs.get("timeout"),
+                request_timeout=kwargs.get("request_timeout")
             )
         # Follow the same convention as all Credentials class to check for the token at creation time #106
         self.set_token()
@@ -619,7 +621,7 @@ class _ImdsTokenProvider(object):
     """A help class handling token acquisitions through Azure IMDS plugin.
     """
 
-    def __init__(self, msi_conf=None, timeout=None):
+    def __init__(self, msi_conf=None, timeout=None, request_timeout=None):
         self._user_agent = AzureConfiguration(None).user_agent
         self.identity_type, self.identity_id = None, None
         if msi_conf:
@@ -631,6 +633,7 @@ class _ImdsTokenProvider(object):
 
         self.cache = {}
         self.timeout = timeout
+        self.request_timeout = request_timeout
 
     def get_token(self, resource):
         import datetime
@@ -682,9 +685,9 @@ class _ImdsTokenProvider(object):
         slots = [100 * ((2 << x) - 1) / 1000 for x in range(max_retry)]
         has_timed_out = self.timeout == 0 # Assume a 0 timeout means "no more than one try"
         while True:
-            result = requests.get(request_uri, params=payload, headers={'Metadata': 'true', 'User-Agent':self._user_agent})
+            result = requests.get(request_uri, params=payload, headers={'Metadata': 'true', 'User-Agent':self._user_agent}, timeout=self.request_timeout)
             _LOGGER.debug("MSI: Retrieving a token from %s, with payload %s", request_uri, payload)
-            if result.status_code in [404, 410, 429] or (499 < result.status_code < 600):
+            if result.status_code in [408, 404, 410, 429] or (499 < result.status_code < 600):
                 if has_timed_out:  # It was the last try, and we still don't get a good status code, die
                     raise MSIAuthenticationTimeoutError('MSI: Failed to acquired tokens before timeout {}'.format(self.timeout))
                 elif retry <= max_retry:
