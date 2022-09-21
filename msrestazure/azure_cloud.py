@@ -153,7 +153,7 @@ AZURE_CHINA_CLOUD = Cloud(
     'AzureChinaCloud',
     endpoints=CloudEndpoints(
         management='https://management.core.chinacloudapi.cn/',
-        resource_manager='https://management.chinacloudapi.cn',
+        resource_manager='https://management.chinacloudapi.cn/',
         sql_management='https://management.core.chinacloudapi.cn:8443/',
         batch_resource_id='https://batch.chinacloudapi.cn/',
         gallery='https://gallery.chinacloudapi.cn/',
@@ -187,7 +187,7 @@ AZURE_GERMAN_CLOUD = Cloud(
     'AzureGermanCloud',
     endpoints=CloudEndpoints(
         management='https://management.core.cloudapi.de/',
-        resource_manager='https://management.microsoftazure.de',
+        resource_manager='https://management.microsoftazure.de/',
         sql_management='https://management.core.cloudapi.de:8443/',
         batch_resource_id='https://batch.cloudapi.de/',
         gallery='https://gallery.cloudapi.de/',
