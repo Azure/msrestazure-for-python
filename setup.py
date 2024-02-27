@@ -28,7 +28,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='msrestazure',
-    version='0.6.4',
+    version='0.6.4.post1',
     author='Microsoft Corporation',
     author_email='azpysdkhelp@microsoft.com',
     packages=find_packages(exclude=["tests", "tests.*"]),
@@ -38,7 +38,7 @@ setup(
                  'Azure-specific module.'),
     long_description=open('README.rst').read(),
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 7 - Inactive',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',

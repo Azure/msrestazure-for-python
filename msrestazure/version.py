@@ -25,4 +25,4 @@
 # --------------------------------------------------------------------------
 
 #: version of the package. Use msrestazure.__version__ instead.
-msrestazure_version = "0.6.4"
+msrestazure_version = "0.6.4.post1"
